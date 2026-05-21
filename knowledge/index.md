@@ -2,7 +2,7 @@
 
 This directory is the source of truth that AI agents consume when working on
 projects in this organisation. Each file covers a specific domain; agents should
-load only the files relevant to the project they are working on.
+load only the files relevant to the task at hand.
 
 ## Files
 
@@ -10,10 +10,12 @@ load only the files relevant to the project they are working on.
 |---|---|---|
 | `conventions.md` | Universal TypeScript naming and file standards | Always |
 | `reactConventions.md` | React/Vite component structure, hooks, folder layout | Working on a React frontend |
+| `issue-workflow.md` | Branch naming, commit format, PR standards, definition of done | Starting or closing out an issue |
+| `testing.md` | Test file location, naming, mocking patterns, coverage expectations | Writing or reviewing tests |
+| `review-checklist.md` | What reviewers check before approving a PR | Reviewing or preparing a PR |
+| `release-process.md` | Versioning policy, release checklist, deployment, rollback | Releasing or working near deployment |
 | `architecture.md` | System design decisions and component overview | Designing features, reviewing large changes |
 | `examples.md` | Concrete code patterns and reference snippets | Unsure how the team handles a particular pattern |
-| `review-checklist.md` | What reviewers check before approving a PR | Reviewing or preparing a PR |
-| `release-process.md` | How releases are cut and deployed | Releasing or working near deployment |
 
 ## How to use this knowledge base
 
