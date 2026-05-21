@@ -1,5 +1,7 @@
 # Testing Standards
 
+This organisation uses **Vitest** as the test runner. Use `vi.fn()`, `vi.mock()`, and `vi.spyOn()` — not their Jest equivalents. Do not install or reference Jest.
+
 How to write, name, and organise tests across all TypeScript projects.
 
 ## File location and naming

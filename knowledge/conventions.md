@@ -19,6 +19,12 @@ regardless of framework or runtime.
 - Keep files under **200 lines** (non-blank, non-comment) where possible.
 - One concern per file — separate different responsibilities into their own modules.
 
+## Imports
+
+- Use `import type` for type-only imports: `import type { Octokit } from "@octokit/rest"`
+- No barrel files (`index.ts` that re-exports everything from a directory) — import directly from the source module
+- Import ordering: external packages first, then internal modules, then types. Keep each group together; do not interleave.
+
 ## TypeScript
 
 - Prefer `type` aliases over `interface` for object shapes.

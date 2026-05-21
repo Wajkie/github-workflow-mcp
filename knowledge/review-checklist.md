@@ -45,6 +45,8 @@ Work top-down. Correctness failures block everything else.
 
 ## PR hygiene
 
+- [ ] PR title follows the format from `issue-workflow.md`: `<type>(<scope>): description`
+- [ ] Branch name follows the format from `issue-workflow.md`: `<type>/<issue-number>-short-description`
 - [ ] PR description explains *why*, not just *what*
 - [ ] Issue is linked (`Closes #n`)
 - [ ] No debug code, `console.log`, or commented-out blocks
