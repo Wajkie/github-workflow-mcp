@@ -3,6 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { createAuditLogger } from "./audit.js";
 import { registerRepositoryTools } from "./tools/repositoryTools.js";
 import { registerPullRequestTools } from "./tools/pullRequestTools.js";
 import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
@@ -15,15 +16,6 @@ const octokit = new Octokit({ auth: config.githubToken });
 
 export const server = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
 
-registerRepositoryTools(server, octokit, config.githubOrg, config.allowedRepos);
-registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos);
-registerPullRequestTools(server, octokit, config.githubOrg, config.allowedRepos);
-registerLintingTools(server, octokit, config.githubOrg);
-registerGithubWriteTools(server, octokit, config.githubOrg, config.allowedRepos, config.allowWrites);
-registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
-registerKnowledgeResources(server);
-
-// Health check — will be wired to the HTTP transport endpoint in Phase 2
 export function getHealthStatus() {
   return {
     status: "ok",
@@ -34,12 +26,31 @@ export function getHealthStatus() {
 }
 
 async function main() {
+  const auditLog = await createAuditLogger(config.databaseUrl);
+
+  let actor = "unknown";
+  if (config.databaseUrl) {
+    try {
+      const { data } = await octokit.users.getAuthenticated();
+      actor = data.login;
+    } catch { /* keep "unknown" if token cannot be resolved */ }
+  }
+
+  registerRepositoryTools(server, octokit, config.githubOrg, config.allowedRepos);
+  registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos);
+  registerPullRequestTools(server, octokit, config.githubOrg, config.allowedRepos);
+  registerLintingTools(server, octokit, config.githubOrg);
+  registerGithubWriteTools(server, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
+  registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
+  registerKnowledgeResources(server);
+
   logger.info({
     msg: "Starting MCP server",
     transport: "stdio",
     org: config.githubOrg,
     allowedRepos: config.allowedRepos,
     allowWrites: config.allowWrites,
+    auditEnabled: !!config.databaseUrl,
   });
 
   const transport = new StdioServerTransport();

@@ -17,4 +17,5 @@ export const config = {
   allowWrites: optional("ALLOW_WRITES", "false") === "true",
   logLevel: optional("LOG_LEVEL", "info"),
   port: parseInt(optional("PORT", "3000"), 10),
+  databaseUrl: process.env["DATABASE_URL"],
 } as const;
