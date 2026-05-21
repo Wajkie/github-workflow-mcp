@@ -3,7 +3,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import { registerRepositoryTools } from "./tools/repositories.js";
+import { registerRepositoryTools } from "./tools/repositoryTools.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
 
