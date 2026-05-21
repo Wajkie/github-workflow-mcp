@@ -1,85 +1,26 @@
 # Engineering Conventions
 
-## Naming Conventions
+Universal rules that apply to every TypeScript project in this organisation,
+regardless of framework or runtime.
 
-### Casing rules
+## Naming Conventions
 
 | What | Case | Examples |
 |---|---|---|
-| Folders | camelCase (start lowercase) | `components/`, `exampleFolder/` |
-| Non-component files | camelCase | `squareService.ts`, `formatDate.ts`, `useInsertSquare.ts` |
-| Component files (React) | PascalCase | `MyButton.tsx` |
-| CSS module files (React) | PascalCase, matching component exactly | `MyButton.module.css` |
-| Type aliases, interfaces, enums (name only, not the file) | PascalCase | `type MyProps`, `interface UserRecord`, `enum Status` |
-| Functions and hooks | camelCase | `handleClick`, `formatDate`, `useInsertSquare` |
-| CSS class names | camelCase | `.container`, `.primaryButton` |
-| Module-level constants | UPPER_CASE is acceptable | `UNSAFE_PATH`, `BASE_URL` |
-
-### React components
-
-- Name components in PascalCase; names should be self-descriptive.
-- Each component lives in its own folder alongside its CSS module:
-  ```
-  primaryButton/
-    PrimaryButton.tsx
-    PrimaryButton.module.css
-  ```
-- The CSS module filename must match the component name exactly.
-- Type props with a `type` alias (not `interface`):
-  ```ts
-  type MyProps = {
-    label: string;
-    count: number;
-  };
-  ```
-
-### Hooks
-
-- Hook names must start with `use` and be self-descriptive, e.g. `useScrollToTop.ts`.
+| Folders | camelCase (start lowercase) | `services/`, `exampleFolder/` |
+| Files (non-component) | camelCase | `squareService.ts`, `formatDate.ts` |
+| Type aliases, interfaces, enums (name only) | PascalCase | `type UserRecord`, `enum Status` |
+| Functions | camelCase | `handleClick`, `formatDate` |
+| Parameters | camelCase; leading `_` allowed for unused | `_req`, `userId` |
+| Module-level constants | UPPER_CASE acceptable | `UNSAFE_PATH`, `BASE_URL` |
 
 ## File Standards
 
 - Keep files under **200 lines** (non-blank, non-comment) where possible.
-- Separate different responsibilities into their own modules — one concern per file.
+- One concern per file — separate different responsibilities into their own modules.
 
-## React Project Folder Structure
+## TypeScript
 
-```
-src/
-  assets/
-    styles/
-      variables/          # CSS variable files (colors.css, spacing.css, …)
-      global.css
-  components/
-    ui/                   # Pure UI components (buttons, dialogs, …)
-      buttons/
-        primaryButton/
-          PrimaryButton.tsx
-          PrimaryButton.module.css
-    utils/                # Shared utility functions
-      formatDate.ts
-    hooks/
-      data/               # Data-interaction hooks, grouped by domain
-        square/
-          useGetSquares.ts
-          useInsertSquare.ts
-      utils/              # General-purpose hooks
-        useScrollToTop.ts
-  pages/                  # Routable page components
-    homePage/
-      HomePage.tsx
-      HomePage.module.css
-    notFoundPage/
-      NotFoundPage.tsx
-      NotFoundPage.module.css
-  services/               # Service / API logic, one folder per service
-    squareApi/
-      squareApi.ts
-      partials/
-        getAllSquares.ts
-        insertSquare.ts
-  App.tsx
-  main.tsx
-```
-
-Config files (`tsconfig.app.json`, `eslint.config.js`, `package.json`, etc.) live at the project root alongside `index.html` and `.env.example`.
+- Prefer `type` aliases over `interface` for object shapes.
+- Do not use `any`. Use `unknown` and narrow explicitly.
+- Avoid re-exporting types or values that nothing outside the module uses.
