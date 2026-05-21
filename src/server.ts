@@ -4,6 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { registerRepositoryTools } from "./tools/repositoryTools.js";
+import { registerPullRequestTools } from "./tools/pullRequestTools.js";
 import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
@@ -12,6 +13,7 @@ export const server = new McpServer({ name: "github-workflow-mcp", version: "0.1
 
 registerRepositoryTools(server, octokit, config.githubOrg);
 registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos);
+registerPullRequestTools(server, octokit, config.githubOrg);
 
 // Health check — will be wired to the HTTP transport endpoint in Phase 2
 export function getHealthStatus() {
