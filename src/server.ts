@@ -3,7 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import { createAuditLogger } from "./audit.js";
+import { createAuditLogger, AuditLogger } from "./audit.js";
+import { startHttpServer } from "./http.js";
 import { registerRepositoryTools } from "./tools/repositoryTools.js";
 import { registerPullRequestTools } from "./tools/pullRequestTools.js";
 import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
@@ -25,6 +26,18 @@ export function getHealthStatus() {
   };
 }
 
+function buildMcpServer(auditLog: AuditLogger, actor: string): McpServer {
+  const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+  registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerPullRequestTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerLintingTools(s, octokit, config.githubOrg);
+  registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
+  registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerKnowledgeResources(s);
+  return s;
+}
+
 async function main() {
   const auditLog = await createAuditLogger(config.databaseUrl);
 
@@ -44,17 +57,22 @@ async function main() {
   registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
   registerKnowledgeResources(server);
 
+  const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
   logger.info({
     msg: "Starting MCP server",
-    transport: "stdio",
+    transports,
     org: config.githubOrg,
     allowedRepos: config.allowedRepos,
     allowWrites: config.allowWrites,
     auditEnabled: !!config.databaseUrl,
   });
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+  if (config.port !== undefined) {
+    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor), getHealthStatus);
+  }
+
+  const stdioTransport = new StdioServerTransport();
+  await server.connect(stdioTransport);
 
   logger.info({ msg: "MCP server connected", transport: "stdio" });
 }
