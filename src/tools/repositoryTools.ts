@@ -1,103 +1,69 @@
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Octokit } from "@octokit/rest";
-import {
-  getFile,
-  getRepository,
-  listRepositories,
-  searchCode,
-} from "./repositories.js";
-
-export const REPOSITORY_TOOL_DEFS = [
-  {
-    name: "list_repositories",
-    description: "List repositories in the organisation",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: "get_repository",
-    description: "Get metadata for a single repository",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string", description: "Repository name (without owner prefix)" },
-      },
-      required: ["repo"],
-    },
-  },
-  {
-    name: "get_file",
-    description: "Read a file from a repository. Recursive/wildcard paths are rejected.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string", description: "Repository name" },
-        path: { type: "string", description: "File path within the repository" },
-        ref: {
-          type: "string",
-          description: "Git ref (branch, tag, or SHA). Defaults to the default branch.",
-        },
-      },
-      required: ["repo", "path"],
-    },
-  },
-  {
-    name: "search_code",
-    description:
-      "Search for code within a repository. Returns file path, line number, and matched snippet.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        repo: { type: "string", description: "Repository name" },
-        query: { type: "string", description: "Search query" },
-      },
-      required: ["repo", "query"],
-    },
-  },
-];
+import { z } from "zod";
+import { getFile, getRepository, listRepositories, searchCode } from "./repositories.js";
 
 function ok(data: unknown) {
-  return {
-    content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
-  };
+  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-function err(message: string) {
-  return {
-    content: [{ type: "text" as const, text: message }],
-    isError: true,
-  };
-}
-
-export async function handleRepositoryTool(
-  name: string,
-  args: Record<string, unknown>,
-  octokit: Octokit,
-  org: string,
-): Promise<ReturnType<typeof ok> | null> {
-  switch (name) {
-    case "list_repositories": {
+export function registerRepositoryTools(server: McpServer, octokit: Octokit, org: string) {
+  server.registerTool(
+    "list_repositories",
+    {
+      description: "List repositories in the organisation",
+      inputSchema: {},
+    },
+    async () => {
       const repos = await listRepositories(octokit, org);
       return ok({ repos });
-    }
-    case "get_repository": {
-      const repo = String((args as { repo: string }).repo);
+    },
+  );
+
+  server.registerTool(
+    "get_repository",
+    {
+      description: "Get metadata for a single repository",
+      inputSchema: { repo: z.string().describe("Repository name (without owner prefix)") },
+    },
+    async ({ repo }) => {
       const data = await getRepository(octokit, org, repo);
       return ok(data);
-    }
-    case "get_file": {
-      const { repo, path, ref } = args as { repo: string; path: string; ref?: string };
-      const data = await getFile(octokit, org, String(repo), String(path), ref);
+    },
+  );
+
+  server.registerTool(
+    "get_file",
+    {
+      description: "Read a file from a repository. Recursive/wildcard paths are rejected.",
+      inputSchema: {
+        repo: z.string().describe("Repository name"),
+        path: z.string().describe("File path within the repository"),
+        ref: z
+          .string()
+          .optional()
+          .describe("Git ref (branch, tag, or SHA). Defaults to the default branch."),
+      },
+    },
+    async ({ repo, path, ref }) => {
+      const data = await getFile(octokit, org, repo, path, ref);
       return ok(data);
-    }
-    case "search_code": {
-      const { repo, query } = args as { repo: string; query: string };
-      const items = await searchCode(octokit, org, String(repo), String(query));
+    },
+  );
+
+  server.registerTool(
+    "search_code",
+    {
+      description:
+        "Search for code within a repository. Returns file path, line number, and matched snippet.",
+      inputSchema: {
+        repo: z.string().describe("Repository name"),
+        query: z.string().describe("Search query"),
+      },
+    },
+    async ({ repo, query }) => {
+      const items = await searchCode(octokit, org, repo, query);
       return ok({ items });
-    }
-    default:
-      return null;
-  }
+    },
+  );
 }
