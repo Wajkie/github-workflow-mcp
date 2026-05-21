@@ -2,12 +2,18 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import { getChangedFiles, getPr } from "./pullRequest.js";
+import { denied, isRepoAllowed } from "./allowlist.js";
 
 function ok(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-export function registerPullRequestTools(server: McpServer, octokit: Octokit, org: string) {
+export function registerPullRequestTools(
+  server: McpServer,
+  octokit: Octokit,
+  org: string,
+  allowedRepos: string,
+) {
   server.registerTool(
     "get_pr",
     {
@@ -19,6 +25,7 @@ export function registerPullRequestTools(server: McpServer, octokit: Octokit, or
       },
     },
     async ({ repo, pr_number }) => {
+      if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       const data = await getPr(octokit, org, repo, pr_number);
       return ok(data);
     },
@@ -35,6 +42,7 @@ export function registerPullRequestTools(server: McpServer, octokit: Octokit, or
       },
     },
     async ({ repo, pr_number }) => {
+      if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       const data = await getChangedFiles(octokit, org, repo, pr_number);
       return ok(data);
     },

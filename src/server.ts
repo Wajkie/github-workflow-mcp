@@ -13,9 +13,9 @@ const octokit = new Octokit({ auth: config.githubToken });
 
 export const server = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
 
-registerRepositoryTools(server, octokit, config.githubOrg);
+registerRepositoryTools(server, octokit, config.githubOrg, config.allowedRepos);
 registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos);
-registerPullRequestTools(server, octokit, config.githubOrg);
+registerPullRequestTools(server, octokit, config.githubOrg, config.allowedRepos);
 registerLintingTools(server, octokit, config.githubOrg);
 registerKnowledgeResources(server);
 
