@@ -1,9 +1,20 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
 import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
-import { registerRepositoryTools } from "./tools/repositoryTools.js";
+import {
+  REPOSITORY_TOOL_DEFS,
+  handleRepositoryTool,
+} from "./tools/repositoryTools.js";
+import {
+  WORK_TRACKING_TOOL_DEFS,
+  handleWorkTrackingTool,
+} from "./tools/workTrackingTools.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
 
@@ -17,7 +28,36 @@ export const server = new Server(
   }
 );
 
-registerRepositoryTools(server, octokit, config.githubOrg);
+const ALL_TOOL_DEFS = [...REPOSITORY_TOOL_DEFS, ...WORK_TRACKING_TOOL_DEFS];
+
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: ALL_TOOL_DEFS,
+}));
+
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  const { name, arguments: args = {} } = request.params;
+  const a = args as Record<string, unknown>;
+
+  try {
+    const result =
+      (await handleRepositoryTool(name, a, octokit, config.githubOrg)) ??
+      (await handleWorkTrackingTool(name, a, octokit, config.githubOrg, config.allowedRepos));
+
+    if (result === null) {
+      return {
+        content: [{ type: "text" as const, text: `Unknown tool: ${name}` }],
+        isError: true,
+      };
+    }
+    return result;
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return {
+      content: [{ type: "text" as const, text: message }],
+      isError: true,
+    };
+  }
+});
 
 // Health check — will be wired to the HTTP transport endpoint in Phase 2
 export function getHealthStatus() {

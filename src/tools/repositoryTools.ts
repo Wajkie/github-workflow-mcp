@@ -1,8 +1,3 @@
-import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
 import type { Octokit } from "@octokit/rest";
 import {
   getFile,
@@ -11,7 +6,7 @@ import {
   searchCode,
 } from "./repositories.js";
 
-const TOOL_DEFS = [
+export const REPOSITORY_TOOL_DEFS = [
   {
     name: "list_repositories",
     description: "List repositories in the organisation",
@@ -76,49 +71,33 @@ function err(message: string) {
   };
 }
 
-export function registerRepositoryTools(
-  server: Server,
+export async function handleRepositoryTool(
+  name: string,
+  args: Record<string, unknown>,
   octokit: Octokit,
   org: string,
-) {
-  server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: TOOL_DEFS,
-  }));
-
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args = {} } = request.params;
-
-    try {
-      switch (name) {
-        case "list_repositories": {
-          const repos = await listRepositories(octokit, org);
-          return ok({ repos });
-        }
-        case "get_repository": {
-          const repo = String((args as { repo: string }).repo);
-          const data = await getRepository(octokit, org, repo);
-          return ok(data);
-        }
-        case "get_file": {
-          const { repo, path, ref } = args as {
-            repo: string;
-            path: string;
-            ref?: string;
-          };
-          const data = await getFile(octokit, org, String(repo), String(path), ref);
-          return ok(data);
-        }
-        case "search_code": {
-          const { repo, query } = args as { repo: string; query: string };
-          const items = await searchCode(octokit, org, String(repo), String(query));
-          return ok({ items });
-        }
-        default:
-          return err(`Unknown tool: ${name}`);
-      }
-    } catch (e) {
-      const message = e instanceof Error ? e.message : String(e);
-      return err(message);
+): Promise<ReturnType<typeof ok> | null> {
+  switch (name) {
+    case "list_repositories": {
+      const repos = await listRepositories(octokit, org);
+      return ok({ repos });
     }
-  });
+    case "get_repository": {
+      const repo = String((args as { repo: string }).repo);
+      const data = await getRepository(octokit, org, repo);
+      return ok(data);
+    }
+    case "get_file": {
+      const { repo, path, ref } = args as { repo: string; path: string; ref?: string };
+      const data = await getFile(octokit, org, String(repo), String(path), ref);
+      return ok(data);
+    }
+    case "search_code": {
+      const { repo, query } = args as { repo: string; query: string };
+      const items = await searchCode(octokit, org, String(repo), String(query));
+      return ok({ items });
+    }
+    default:
+      return null;
+  }
 }
