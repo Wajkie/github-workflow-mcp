@@ -8,6 +8,7 @@ import { registerPullRequestTools } from "./tools/pullRequestTools.js";
 import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
 import { registerLintingTools } from "./tools/lintingTools.js";
 import { registerGithubWriteTools } from "./tools/githubWriteTools.js";
+import { registerReleaseTools } from "./tools/releaseTools.js";
 import { registerKnowledgeResources } from "./resources/knowledgeResources.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
@@ -19,6 +20,7 @@ registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos
 registerPullRequestTools(server, octokit, config.githubOrg, config.allowedRepos);
 registerLintingTools(server, octokit, config.githubOrg);
 registerGithubWriteTools(server, octokit, config.githubOrg, config.allowedRepos, config.allowWrites);
+registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
 registerKnowledgeResources(server);
 
 // Health check — will be wired to the HTTP transport endpoint in Phase 2
