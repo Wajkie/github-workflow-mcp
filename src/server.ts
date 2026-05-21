@@ -1,7 +1,11 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
+import { registerRepositoryTools } from "./tools/repositories.js";
+
+const octokit = new Octokit({ auth: config.githubToken });
 
 export const server = new Server(
   { name: "github-workflow-mcp", version: "0.1.0" },
@@ -12,6 +16,8 @@ export const server = new Server(
     },
   }
 );
+
+registerRepositoryTools(server, octokit, config.githubOrg);
 
 // Health check — will be wired to the HTTP transport endpoint in Phase 2
 export function getHealthStatus() {
