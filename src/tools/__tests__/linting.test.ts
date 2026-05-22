@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectLinters, lintCode, validateDiff, suggestFixes } from "../linting.js";
+import { detectLinters, lintCode, validateDiff, suggestFixes, applyAutofix, generateUnifiedDiff } from "../linting.js";
 import type { LintViolation } from "../linting.js";
 
 // These tests run against the real project config files (eslint.config.js, tsconfig.json)
@@ -109,6 +109,67 @@ describe("validateDiff", () => {
       // 'MyVar' is the 2nd line of the hunk (hunk starts at new-line 10, +1 offset = line 11)
       expect(naming.line).toBeGreaterThanOrEqual(10);
     }
+  });
+});
+
+describe("applyAutofix", () => {
+  it("returns fixApplied: false and original content for clean code", async () => {
+    const code = `export function add(a: number, b: number): number {\n  return a + b;\n}\n`;
+    const result = await applyAutofix(code, "src/example.ts");
+    expect(result.fixApplied).toBe(false);
+    expect(result.fixed).toBe(code);
+  });
+
+  it("returns an object with fixed and fixApplied fields", async () => {
+    const code = `export const x = 1;\n`;
+    const result = await applyAutofix(code, "src/example.ts");
+    expect(typeof result.fixed).toBe("string");
+    expect(typeof result.fixApplied).toBe("boolean");
+  });
+
+  it("does not throw on invalid TypeScript", async () => {
+    const code = `const x: number = "hello";\n`;
+    await expect(applyAutofix(code, "src/example.ts")).resolves.toBeDefined();
+  });
+});
+
+describe("generateUnifiedDiff", () => {
+  it("returns empty string when content is unchanged", () => {
+    const code = "const x = 1;\n";
+    expect(generateUnifiedDiff(code, code, "src/a.ts")).toBe("");
+  });
+
+  it("returns a diff with --- and +++ headers when content differs", () => {
+    const original = "const x = 1;\n";
+    const fixed = "const y = 1;\n";
+    const diff = generateUnifiedDiff(original, fixed, "src/a.ts");
+    expect(diff).toContain("--- a/src/a.ts");
+    expect(diff).toContain("+++ b/src/a.ts");
+  });
+
+  it("marks removed lines with - and added lines with +", () => {
+    const original = "const x = 1;\nconst y = 2;\n";
+    const fixed = "const x = 1;\nconst z = 2;\n";
+    const diff = generateUnifiedDiff(original, fixed, "src/a.ts");
+    expect(diff).toContain("-const y = 2;");
+    expect(diff).toContain("+const z = 2;");
+  });
+
+  it("includes context lines around changes", () => {
+    const lines = Array.from({ length: 10 }, (_, i) => `line${i + 1}`);
+    const original = lines.join("\n");
+    const fixed = [...lines.slice(0, 5), "changed", ...lines.slice(6)].join("\n");
+    const diff = generateUnifiedDiff(original, fixed, "src/a.ts");
+    expect(diff).toContain("-line6");
+    expect(diff).toContain("+changed");
+    // context lines should appear
+    expect(diff).toContain(" line5");
+    expect(diff).toContain(" line7");
+  });
+
+  it("produces an @@ hunk header", () => {
+    const diff = generateUnifiedDiff("a\n", "b\n", "src/a.ts");
+    expect(diff).toMatch(/@@\s+-\d+,\d+\s+\+\d+,\d+\s+@@/);
   });
 });
 

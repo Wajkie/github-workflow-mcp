@@ -7,11 +7,25 @@ import {
   validateDiff,
   validatePrFiles,
   suggestFixes,
+  applyAutofix,
+  generateUnifiedDiff,
   type LintViolation,
 } from "./linting.js";
+import { denied, isRepoAllowed } from "./allowlist.js";
+import { writeDenied } from "./writeGate.js";
+import { createBranch, writeFileToRepo } from "./githubWrite.js";
+import type { AuditLogger } from "../audit.js";
 import { ok, toErrorContent } from "./response.js";
 
-export function registerLintingTools(server: McpServer, octokit: Octokit, org: string) {
+export function registerLintingTools(
+  server: McpServer,
+  octokit: Octokit,
+  org: string,
+  allowedRepos = "*",
+  allowWrites = false,
+  auditLog: AuditLogger = async () => {},
+  actor = "unknown",
+) {
   server.registerTool(
     "lint_code",
     {
@@ -102,6 +116,54 @@ export function registerLintingTools(server: McpServer, octokit: Octokit, org: s
         const edits = suggestFixes(violations as LintViolation[]);
         return ok(edits);
       } catch (err) {
+        return toErrorContent(err);
+      }
+    },
+  );
+
+  server.registerTool(
+    "apply_safe_fixes",
+    {
+      description:
+        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and write the result to a new branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true.",
+      inputSchema: {
+        repo: z.string().describe("Repository name (without owner prefix)"),
+        path: z.string().describe("File path within the repository (e.g. 'src/utils.ts')"),
+        content: z.string().describe("Current file content to fix"),
+        base_branch: z.string().describe("Branch to base the fix branch on (e.g. 'main')"),
+        branch_name: z.string().describe("Name for the new branch that will contain the fixes"),
+      },
+    },
+    async ({ repo, path, content, base_branch, branch_name }) => {
+      if (!allowWrites) return writeDenied();
+      if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
+      try {
+        const { fixed, fixApplied } = await applyAutofix(content, path);
+        if (!fixApplied) {
+          return ok({ message: "No autofixable violations found. No changes were made.", diff: "" });
+        }
+        await createBranch(octokit, org, repo, branch_name, base_branch);
+        await writeFileToRepo(
+          octokit, org, repo, path, fixed,
+          `fix(lint): apply safe autofixes to ${path}`,
+          branch_name,
+        );
+        const diff = generateUnifiedDiff(content, fixed, path);
+        await auditLog({
+          tool: "apply_safe_fixes",
+          inputs: { repo, path, base_branch, branch_name },
+          outcome: "success",
+          actor,
+        });
+        return ok({ branch: branch_name, diff });
+      } catch (err) {
+        await auditLog({
+          tool: "apply_safe_fixes",
+          inputs: { repo, path, base_branch, branch_name },
+          outcome: "error",
+          error: String(err),
+          actor,
+        });
         return toErrorContent(err);
       }
     },

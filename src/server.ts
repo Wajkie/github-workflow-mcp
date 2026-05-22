@@ -42,7 +42,7 @@ async function registerAllTools(
   registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
   registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
   registerPullRequestTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
-  registerLintingTools(s, octokit, config.githubOrg);
+  registerLintingTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
   await registerKnowledgeResources(s);

@@ -71,6 +71,32 @@ export async function requestReview(
 
 type MergeMethod = "squash" | "merge" | "rebase";
 
+export async function writeFileToRepo(
+  octokit: Octokit,
+  org: string,
+  repo: string,
+  path: string,
+  content: string,
+  message: string,
+  branch: string,
+): Promise<void> {
+  let sha: string | undefined;
+  try {
+    const { data } = await octokit.rest.repos.getContent({ owner: org, repo, path, ref: branch });
+    if (!Array.isArray(data) && "sha" in data) sha = (data as { sha: string }).sha;
+  } catch { /* file does not yet exist on this branch */ }
+
+  await octokit.rest.repos.createOrUpdateFileContents({
+    owner: org,
+    repo,
+    path,
+    message,
+    content: Buffer.from(content).toString("base64"),
+    branch,
+    sha,
+  });
+}
+
 export async function mergePr(
   octokit: Octokit,
   org: string,
