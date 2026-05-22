@@ -31,7 +31,18 @@ In **Settings → Variables** add:
 
 > `DATABASE_URL` is injected automatically when the Postgres plugin is in the same Railway project — you do not need to set it manually.
 
-### 4. Health check
+### 4. Audit dashboard
+
+When `DATABASE_URL` is set, a browser-readable audit log is available at:
+
+```
+GET /audit          → HTML table (auto-refreshes every 30 s)
+GET /audit?format=json → raw JSON array
+```
+
+Both endpoints return the 100 most recent audit entries ordered by `created_at DESC`. When no database is configured the page renders an empty table with a notice — no errors are thrown.
+
+### 5. Health check
 
 Railway uses the path configured in `railway.toml`:
 
@@ -41,7 +52,7 @@ healthcheckPath = "/health"
 
 The server exposes `GET /health` on the HTTP transport (requires `PORT` to be set). If the health check fails, Railway retries up to 3 times before marking the deploy as failed.
 
-### 5. Deploy
+### 6. Deploy
 
 ```
 railway up
