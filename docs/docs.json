@@ -302,7 +302,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Check a piece of code for errors and style issues.",
-      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config (eslint.config.js, tsconfig.json). Runs ESLint and the TypeScript compiler. Returns violations with severity, rule ID, line/column, explanation, and suggested fix. Input is capped at 100 KB.",
+      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config. ESLint and TypeScript config are loaded from LINT_CWD (defaults to the server's own directory — set LINT_CWD to your project root to enforce your team's rules). Returns violations with severity, rule ID, line/column, explanation, and suggested fix. Input is capped at 100 KB.",
       "inputs": [
         { "name": "content", "type": "string", "required": true, "description": "Source code to lint." },
         { "name": "filename", "type": "string", "required": true, "description": "Filename (e.g. src/utils.ts). Used to select the linter and resolve config — the file does not need to exist on disk." }
@@ -322,7 +322,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Lint the changed lines in a git diff.",
-      "description": "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers. Input is capped at 100 KB.",
+      "description": "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context using the config from LINT_CWD. Returns violations mapped to their new-file line numbers. Input is capped at 100 KB.",
       "inputs": [
         { "name": "diff", "type": "string", "required": true, "description": "Unified diff string (output of git diff or similar)." }
       ],
@@ -658,6 +658,7 @@
                     { "name": "GITHUB_ORG", "required": true, "default": null, "description": "GitHub organisation slug.", "example": "acme-corp" },
                     { "name": "ALLOWED_REPOS", "required": false, "default": "*", "description": "Comma-separated list of repository names the agent may access. Use * for all repos.", "example": "api,frontend,infra" },
                     { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes).", "example": "true" },
+                    { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used for linting. Point this at your project root so lint_code, validate_diff, validate_pr, and apply_safe_fixes enforce your team's actual rules.", "example": "/home/app/my-project" },
                     { "name": "LOG_LEVEL", "required": false, "default": "info", "description": "Logging verbosity.", "example": "debug" },
                     { "name": "PORT", "required": false, "default": null, "description": "Enables the HTTP transport when set. Both stdio and HTTP run simultaneously when PORT is present.", "example": "3000" },
                     { "name": "MCP_SECRET", "required": false, "default": null, "description": "If set, all /mcp requests must include an x-mcp-secret header matching this value.", "example": "a-long-random-secret" },

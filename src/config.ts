@@ -29,4 +29,5 @@ export const config = {
   mcpSecret: process.env["MCP_SECRET"],
   maxBodyBytes: parseInt(process.env["MAX_BODY_BYTES"] ?? "1048576", 10),
   maxSessions: parseInt(process.env["MAX_SESSIONS"] ?? "100", 10),
+  lintCwd: process.env["LINT_CWD"] ?? process.cwd(),
 } as const;

@@ -25,6 +25,7 @@ export function registerLintingTools(
   allowWrites = false,
   auditLog: AuditLogger = async () => {},
   actor = "unknown",
+  lintCwd = process.cwd(),
 ) {
   server.registerTool(
     "lint_code",
@@ -42,7 +43,7 @@ export function registerLintingTools(
     },
     async ({ content, filename }) => {
       try {
-        const violations = await lintCode(content, filename);
+        const violations = await lintCode(content, filename, lintCwd);
         return ok(violations);
       } catch (err) {
         return toErrorContent(err);
@@ -61,7 +62,7 @@ export function registerLintingTools(
     },
     async ({ diff }) => {
       try {
-        const violations = await validateDiff(diff);
+        const violations = await validateDiff(diff, lintCwd);
         return ok(violations);
       } catch (err) {
         return toErrorContent(err);
@@ -82,7 +83,7 @@ export function registerLintingTools(
     async ({ repo, pr_number: prNumber }) => {
       try {
         const files = await getChangedFiles(octokit, org, repo, prNumber);
-        const violations = await validatePrFiles(files);
+        const violations = await validatePrFiles(files, lintCwd);
         return ok(violations);
       } catch (err) {
         return toErrorContent(err);
@@ -141,7 +142,7 @@ export function registerLintingTools(
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const { fixed, fixApplied } = await applyAutofix(content, path);
+        const { fixed, fixApplied } = await applyAutofix(content, path, lintCwd);
         if (!fixApplied) {
           return ok({ message: "No autofixable violations found. No changes were made.", diff: "" });
         }

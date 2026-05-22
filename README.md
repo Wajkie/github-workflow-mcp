@@ -92,6 +92,7 @@ Full tool reference, inputs, outputs, and examples: see [`docs/docs.json`](docs/
 | `GITHUB_ORG` | Yes | — | GitHub organisation slug |
 | `ALLOWED_REPOS` | No | `*` | Comma-separated repo names, or `*` for all |
 | `ALLOW_WRITES` | No | `false` | Set `true` to enable write tools |
+| `LINT_CWD` | No | server cwd | Directory whose `eslint.config.js` and `tsconfig.json` are used for linting. Point this at your project root so linting respects your team's rules. |
 | `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `PORT` | No | — | Enables HTTP transport when set |
 | `MCP_SECRET` | No | — | Shared secret required on `x-mcp-secret` header (HTTP only) |

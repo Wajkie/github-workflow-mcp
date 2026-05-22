@@ -40,31 +40,29 @@ const PRETTIER_CONFIGS = [
   ".prettierrc.yaml", ".prettierrc.yml", "prettier.config.js", "prettier.config.cjs",
 ];
 
-function safeLintPath(filename: string): string {
-  const cwd = process.cwd();
-  const resolved = resolve(cwd, filename);
-  const rel = relative(cwd, resolved);
+function safeLintPath(filename: string, lintCwd: string): string {
+  const resolved = resolve(lintCwd, filename);
+  const rel = relative(lintCwd, resolved);
   if (isAbsolute(rel) || rel.startsWith("..")) {
-    return join(cwd, basename(filename));
+    return join(lintCwd, basename(filename));
   }
   return resolved;
 }
 
-export function detectLinters(filename: string): string[] {
+export function detectLinters(filename: string, lintCwd = process.cwd()): string[] {
   const linters: string[] = [];
   const ext = extname(filename);
-  const cwd = process.cwd();
-  if (ESLINT_CONFIGS.some((f) => existsSync(join(cwd, f)))) linters.push("eslint");
-  if ([".ts", ".tsx"].includes(ext) && existsSync(join(cwd, "tsconfig.json"))) linters.push("typescript");
-  if (PRETTIER_CONFIGS.some((f) => existsSync(join(cwd, f)))) linters.push("prettier");
-  if (existsSync(join(cwd, "biome.json")) || existsSync(join(cwd, "biome.jsonc"))) linters.push("biome");
+  if (ESLINT_CONFIGS.some((f) => existsSync(join(lintCwd, f)))) linters.push("eslint");
+  if ([".ts", ".tsx"].includes(ext) && existsSync(join(lintCwd, "tsconfig.json"))) linters.push("typescript");
+  if (PRETTIER_CONFIGS.some((f) => existsSync(join(lintCwd, f)))) linters.push("prettier");
+  if (existsSync(join(lintCwd, "biome.json")) || existsSync(join(lintCwd, "biome.jsonc"))) linters.push("biome");
   return linters;
 }
 
-async function lintWithEslint(content: string, filePath: string): Promise<LintViolation[]> {
+async function lintWithEslint(content: string, filePath: string, lintCwd: string): Promise<LintViolation[]> {
   try {
-    const eslint = new ESLint();
-    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath) });
+    const eslint = new ESLint({ cwd: lintCwd });
+    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
     if (!result) return [];
     return result.messages.map((msg) => ({
       linter: "eslint",
@@ -83,13 +81,15 @@ async function lintWithEslint(content: string, filePath: string): Promise<LintVi
 // Suppress "cannot find module/name" noise — expected when linting inline snippets
 const MODULE_RESOLUTION_CODES = new Set([2304, 2305, 2306, 2307, 2308, 2309, 7016, 7026]);
 
-async function lintWithTypescript(content: string, filename: string): Promise<LintViolation[]> {
+async function lintWithTypescript(content: string, filename: string, lintCwd: string): Promise<LintViolation[]> {
+  const tsconfigPath = join(lintCwd, "tsconfig.json");
+  if (!existsSync(tsconfigPath)) return [];
   const tmpFile = join(tmpdir(), `mcp-ts-${randomUUID()}-${basename(filename)}`);
   try {
     await writeFile(tmpFile, content, "utf-8");
-    const program = ts.createProgram([tmpFile], {
-      noEmit: true, strict: true, target: ts.ScriptTarget.ESNext, skipLibCheck: true,
-    });
+    const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+    const { options } = ts.parseJsonConfigFileContent(configFile.config, ts.sys, lintCwd);
+    const program = ts.createProgram([tmpFile], { ...options, noEmit: true, skipLibCheck: true });
     const diagnostics = ts.getPreEmitDiagnostics(program);
     const normalizedTmp = tmpFile.replace(/\\/g, "/");
     return Array.from(diagnostics)
@@ -122,24 +122,25 @@ async function lintWithTypescript(content: string, filename: string): Promise<Li
   }
 }
 
-export async function lintCode(content: string, filename: string): Promise<LintViolation[]> {
+export async function lintCode(content: string, filename: string, lintCwd = process.cwd()): Promise<LintViolation[]> {
   if (content.length > MAX_LINT_BYTES) {
     throw new Error(`Content too large to lint (${content.length} bytes, limit ${MAX_LINT_BYTES})`);
   }
-  const linters = detectLinters(filename);
+  const linters = detectLinters(filename, lintCwd);
   const all: LintViolation[] = [];
-  if (linters.includes("eslint")) all.push(...(await lintWithEslint(content, filename)));
-  if (linters.includes("typescript")) all.push(...(await lintWithTypescript(content, filename)));
+  if (linters.includes("eslint")) all.push(...(await lintWithEslint(content, filename, lintCwd)));
+  if (linters.includes("typescript")) all.push(...(await lintWithTypescript(content, filename, lintCwd)));
   return all.sort((a, b) => a.line - b.line || a.column - b.column);
 }
 
 export async function applyAutofix(
   content: string,
   filePath: string,
+  lintCwd = process.cwd(),
 ): Promise<{ fixed: string; fixApplied: boolean }> {
   try {
-    const eslint = new ESLint({ fix: true });
-    const [result] = await eslint.lintText(content, { filePath });
+    const eslint = new ESLint({ fix: true, cwd: lintCwd });
+    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
     if (!result) return { fixed: content, fixApplied: false };
     const fixed = result.output ?? content;
     return { fixed, fixApplied: fixed !== content };
@@ -183,7 +184,7 @@ function parseUnifiedDiff(diff: string): ParsedFile[] {
   return files;
 }
 
-export async function validateDiff(diff: string): Promise<DiffViolation[]> {
+export async function validateDiff(diff: string, lintCwd = process.cwd()): Promise<DiffViolation[]> {
   if (diff.length > MAX_LINT_BYTES) {
     throw new Error(`Diff too large to lint (${diff.length} bytes, limit ${MAX_LINT_BYTES})`);
   }
@@ -193,7 +194,7 @@ export async function validateDiff(diff: string): Promise<DiffViolation[]> {
     for (const hunk of file.hunks) {
       const content = hunk.lines.join("\n");
       if (!content.trim()) continue;
-      const violations = await lintCode(content, file.filename);
+      const violations = await lintCode(content, file.filename, lintCwd);
       for (const v of violations) {
         results.push({ ...v, filename: file.filename, line: hunk.startLine + v.line - 1 });
       }
@@ -204,12 +205,13 @@ export async function validateDiff(diff: string): Promise<DiffViolation[]> {
 
 export async function validatePrFiles(
   files: Array<{ filename: string; patch: string | null }>,
+  lintCwd = process.cwd(),
 ): Promise<DiffViolation[]> {
   const results: DiffViolation[] = [];
   for (const file of files) {
     if (!file.patch) continue;
     // Reconstruct a minimal unified diff so we can reuse parseUnifiedDiff
-    const violations = await validateDiff(`+++ b/${file.filename}\n${file.patch}`);
+    const violations = await validateDiff(`+++ b/${file.filename}\n${file.patch}`, lintCwd);
     results.push(...violations);
   }
   return results;
