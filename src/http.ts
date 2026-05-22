@@ -57,6 +57,13 @@ async function dispatch(
   }
 
   if (req.method === "GET" && url.pathname === "/audit") {
+    if (options.secret) {
+      const auth = req.headers["authorization"];
+      if (auth !== `Bearer ${options.secret}`) {
+        jsonResponse(res, 401, { error: "Unauthorized" });
+        return;
+      }
+    }
     await handleAuditDashboard(req, res, url, getAuditEntries);
     return;
   }
