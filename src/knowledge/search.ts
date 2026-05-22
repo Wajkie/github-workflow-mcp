@@ -1,5 +1,6 @@
 import { Pool } from "pg";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sanitizeContent } from "../sanitize.js";
@@ -28,6 +29,11 @@ const SETUP_SQL = `
   );
   CREATE INDEX IF NOT EXISTS knowledge_chunks_content_trgm
     ON knowledge_chunks USING GIN (content gin_trgm_ops);
+  CREATE TABLE IF NOT EXISTS knowledge_files (
+    file         TEXT PRIMARY KEY,
+    content_hash TEXT NOT NULL,
+    indexed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+  );
 `;
 
 const SEARCH_SQL = `
@@ -76,15 +82,15 @@ async function indexFiles(pool: Pool): Promise<void> {
   const files = (await readdir(knowledgeDir)).filter((f) => f.endsWith(".md"));
   for (const filename of files) {
     const file = filename.replace(/\.md$/, "");
-    const fileStat = await stat(join(knowledgeDir, filename));
-    const { rows } = await pool.query<{ updated_at: Date }>(
-      "SELECT MAX(updated_at) AS updated_at FROM knowledge_chunks WHERE file = $1",
+    const content = await readFile(join(knowledgeDir, filename), "utf-8");
+    const hash = createHash("sha256").update(content).digest("hex");
+
+    const { rows } = await pool.query<{ content_hash: string }>(
+      "SELECT content_hash FROM knowledge_files WHERE file = $1",
       [file],
     );
-    const lastIndexed = rows[0]?.updated_at;
-    if (lastIndexed && fileStat.mtime <= lastIndexed) continue;
+    if (rows[0]?.content_hash === hash) continue;
 
-    const content = await readFile(join(knowledgeDir, filename), "utf-8");
     const chunks = chunkMarkdown(filename, content);
     await pool.query("DELETE FROM knowledge_chunks WHERE file = $1", [file]);
     for (const chunk of chunks) {
@@ -93,6 +99,12 @@ async function indexFiles(pool: Pool): Promise<void> {
         [chunk.file, chunk.section, chunk.content],
       );
     }
+    await pool.query(
+      `INSERT INTO knowledge_files (file, content_hash, indexed_at)
+       VALUES ($1, $2, now())
+       ON CONFLICT (file) DO UPDATE SET content_hash = EXCLUDED.content_hash, indexed_at = now()`,
+      [file, hash],
+    );
   }
 }
 

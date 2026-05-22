@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { chunkMarkdown, createKnowledgeSearcher } from "../search.js";
 
 const mockQuery = vi.hoisted(() => vi.fn());
+const mockReaddir = vi.hoisted(() => vi.fn().mockResolvedValue([]));
+const mockReadFile = vi.hoisted(() => vi.fn().mockResolvedValue(""));
 
 vi.mock("pg", () => ({
   Pool: vi.fn().mockImplementation(function () {
@@ -10,8 +12,8 @@ vi.mock("pg", () => ({
 }));
 
 vi.mock("node:fs/promises", () => ({
-  readdir: vi.fn().mockResolvedValue([]),
-  readFile: vi.fn().mockResolvedValue(""),
+  readdir: mockReaddir,
+  readFile: mockReadFile,
 }));
 
 describe("chunkMarkdown", () => {
@@ -56,6 +58,8 @@ describe("createKnowledgeSearcher", () => {
   beforeEach(() => {
     mockQuery.mockReset();
     mockQuery.mockResolvedValue({ rows: [] });
+    mockReaddir.mockResolvedValue([]);
+    mockReadFile.mockResolvedValue("");
   });
 
   it("returns a no-op searcher when databaseUrl is undefined", async () => {
@@ -65,7 +69,7 @@ describe("createKnowledgeSearcher", () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it("sets up extension and table on init", async () => {
+  it("sets up extension, chunks table, and files table on init", async () => {
     await createKnowledgeSearcher("postgresql://test");
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("CREATE EXTENSION IF NOT EXISTS pg_trgm"),
@@ -73,6 +77,58 @@ describe("createKnowledgeSearcher", () => {
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining("CREATE TABLE IF NOT EXISTS knowledge_chunks"),
     );
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining("CREATE TABLE IF NOT EXISTS knowledge_files"),
+    );
+  });
+
+  it("skips indexing a file whose content hash is unchanged", async () => {
+    mockReaddir.mockResolvedValue(["conventions.md"]);
+    mockReadFile.mockResolvedValue("# Naming\nUse camelCase");
+    // Return a matching hash so the file should be skipped.
+    // SHA-256("# Naming\nUse camelCase") computed at test time via the same crypto module.
+    const { createHash } = await import("node:crypto");
+    const hash = createHash("sha256").update("# Naming\nUse camelCase").digest("hex");
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // SETUP_SQL
+      .mockResolvedValueOnce({ rows: [{ content_hash: hash }] }); // SELECT content_hash
+
+    await createKnowledgeSearcher("postgresql://test");
+
+    // No DELETE or INSERT should have been issued for this file.
+    const calls = mockQuery.mock.calls.map((c) => String(c[0]));
+    expect(calls.some((s) => s.includes("DELETE"))).toBe(false);
+    expect(calls.some((s) => s.includes("INSERT INTO knowledge_chunks"))).toBe(false);
+  });
+
+  it("re-indexes a file when its content hash has changed", async () => {
+    mockReaddir.mockResolvedValue(["conventions.md"]);
+    mockReadFile.mockResolvedValue("# Naming\nUse camelCase");
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // SETUP_SQL
+      .mockResolvedValueOnce({ rows: [{ content_hash: "stale-hash" }] }) // SELECT content_hash
+      .mockResolvedValue({ rows: [] }); // DELETE, INSERT, upsert knowledge_files
+
+    await createKnowledgeSearcher("postgresql://test");
+
+    const calls = mockQuery.mock.calls.map((c) => String(c[0]));
+    expect(calls.some((s) => s.includes("DELETE FROM knowledge_chunks"))).toBe(true);
+    expect(calls.some((s) => s.includes("INSERT INTO knowledge_files"))).toBe(true);
+  });
+
+  it("indexes a file that has never been seen before", async () => {
+    mockReaddir.mockResolvedValue(["new-doc.md"]);
+    mockReadFile.mockResolvedValue("## Section\nSome content here");
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] }) // SETUP_SQL
+      .mockResolvedValueOnce({ rows: [] }) // SELECT content_hash — no row
+      .mockResolvedValue({ rows: [] });
+
+    await createKnowledgeSearcher("postgresql://test");
+
+    const calls = mockQuery.mock.calls.map((c) => String(c[0]));
+    expect(calls.some((s) => s.includes("INSERT INTO knowledge_chunks"))).toBe(true);
+    expect(calls.some((s) => s.includes("INSERT INTO knowledge_files"))).toBe(true);
   });
 
   it("search returns mapped results from the DB", async () => {
