@@ -1,12 +1,16 @@
 import type { Octokit } from "@octokit/rest";
 
 export async function listRepositories(octokit: Octokit, org: string) {
-  const { data } = await octokit.rest.repos.listForOrg({
-    org,
-    type: "all",
-    per_page: 100,
-  });
-  return data.map((r) => ({
+  let items: Awaited<ReturnType<typeof octokit.rest.repos.listForOrg>>["data"];
+  try {
+    const { data } = await octokit.rest.repos.listForOrg({ org, type: "all", per_page: 100 });
+    items = data;
+  } catch (err: unknown) {
+    if ((err as { status?: number }).status !== 404) throw err;
+    const { data } = await octokit.rest.repos.listForUser({ username: org, type: "all", per_page: 100 });
+    items = data;
+  }
+  return items.map((r) => ({
     name: r.name,
     description: r.description ?? null,
     default_branch: r.default_branch,
