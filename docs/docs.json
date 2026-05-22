@@ -197,6 +197,26 @@
       }
     },
     {
+      "id": "list_pull_requests",
+      "name": "list_pull_requests",
+      "category": "pull-requests",
+      "requiresWrites": false,
+      "summary": "List pull requests in a repository.",
+      "description": "List pull requests in a repository. Returns number, title, state, draft flag, head/base branch, author, and URL. Defaults to open PRs. Use before get_pr to find the PR number.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "state", "type": "open | closed | all", "required": false, "description": "Filter by PR state. Defaults to open." }
+      ],
+      "returns": {
+        "description": "Array of pull request summaries.",
+        "shape": [{ "number": "number", "title": "string", "state": "string", "draft": "boolean", "head": "string", "base": "string", "author": "string | null", "url": "string", "created_at": "string", "updated_at": "string" }]
+      },
+      "example": {
+        "input": { "repo": "api", "state": "open" },
+        "output": [{ "number": 42, "title": "Add rate limiting", "state": "open", "draft": false, "head": "feature/rate-limit", "base": "main", "author": "alice", "url": "https://github.com/...", "created_at": "2026-05-01T09:00:00Z", "updated_at": "2026-05-02T11:30:00Z" }]
+      }
+    },
+    {
       "id": "get_pr",
       "name": "get_pr",
       "category": "pull-requests",
@@ -483,14 +503,14 @@
       "name": "apply_safe_fixes",
       "category": "linting",
       "requiresWrites": true,
-      "summary": "Automatically fix safe lint issues and commit them to a new branch.",
-      "description": "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and write the result to a new branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true.",
+      "summary": "Automatically fix safe lint issues and commit them to a branch.",
+      "description": "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and commit the result to a branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true. To write to an existing branch set only branch. To create a new branch first, set both branch (new name) and base_branch (source).",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "path", "type": "string", "required": true, "description": "File path within the repository." },
         { "name": "content", "type": "string", "required": true, "description": "Current file content to fix." },
-        { "name": "base_branch", "type": "string", "required": true, "description": "Branch to base the fix branch on." },
-        { "name": "branch_name", "type": "string", "required": true, "description": "Name for the new branch that will contain the fixes." }
+        { "name": "branch", "type": "string", "required": true, "description": "Branch to commit fixes to. If this branch does not yet exist, supply base_branch to create it." },
+        { "name": "base_branch", "type": "string", "required": false, "description": "If provided, creates branch from this base before committing. Omit to write to an already-existing branch." }
       ],
       "returns": {
         "description": "Branch name and unified diff of applied changes, or a message if no fixes were needed.",
@@ -501,8 +521,8 @@
         }
       },
       "example": {
-        "input": { "repo": "api", "path": "src/index.ts", "content": "import b from 'b'\nimport a from 'a'\n", "base_branch": "main", "branch_name": "fix/lint-index" },
-        "output": { "branch": "fix/lint-index", "diff": "--- a/src/index.ts\n+++ b/src/index.ts\n..." }
+        "input": { "repo": "api", "path": "src/index.ts", "content": "const x = 1\nexport {}\n", "branch": "fix/lint-index", "base_branch": "main" },
+        "output": { "branch": "fix/lint-index", "diff": "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,2 +1,2 @@\n-const x = 1\n+const x = 1;\n export {};\n" }
       }
     },
     {
@@ -524,6 +544,29 @@
       "example": {
         "input": { "query": "naming conventions variables" },
         "output": { "results": [{ "file": "conventions", "section": "Naming", "excerpt": "Use camelCase for variables and functions...", "score": 0.87 }] }
+      }
+    },
+    {
+      "id": "create_or_update_file",
+      "name": "create_or_update_file",
+      "category": "write",
+      "requiresWrites": true,
+      "summary": "Write or update a single file on an existing branch.",
+      "description": "Write or update a single file in a repository on an existing branch. Creates the file if it doesn't exist, overwrites it if it does. Use create_branch first if the branch doesn't exist. Requires ALLOW_WRITES=true. All write operations are audit-logged when a database is connected.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "path", "type": "string", "required": true, "description": "File path within the repository (e.g. src/router.ts)." },
+        { "name": "content", "type": "string", "required": true, "description": "Full file content to write." },
+        { "name": "branch", "type": "string", "required": true, "description": "Branch to commit to (must already exist)." },
+        { "name": "commit_message", "type": "string", "required": true, "description": "Commit message." }
+      ],
+      "returns": {
+        "description": "Confirmation of the committed file.",
+        "shape": { "repo": "string", "path": "string", "branch": "string", "committed": "boolean" }
+      },
+      "example": {
+        "input": { "repo": "api", "path": "src/health.ts", "content": "export const health = () => ({ status: 'ok' });\n", "branch": "feature/add-health", "commit_message": "feat: add health helper" },
+        "output": { "repo": "api", "path": "src/health.ts", "branch": "feature/add-health", "committed": true }
       }
     },
     {
@@ -722,7 +765,7 @@
             {
               "id": "pull-requests",
               "title": "Pull request tools",
-              "toolRefs": ["get_pr", "get_changed_files"]
+              "toolRefs": ["list_pull_requests", "get_pr", "get_changed_files"]
             },
             {
               "id": "releases",
@@ -748,7 +791,7 @@
               "id": "write",
               "title": "Write tools",
               "requiresWrites": true,
-              "toolRefs": ["create_branch", "create_pull_request", "request_review", "merge_pr"]
+              "toolRefs": ["create_branch", "create_or_update_file", "create_pull_request", "request_review", "merge_pr"]
             }
           ]
         },
@@ -811,6 +854,10 @@
                 {
                   "type": "prose",
                   "body": "Two transports run simultaneously when PORT is set. stdio uses a single shared McpServer instance. HTTP creates a separate McpServer per session (via StreamableHTTPServerTransport) so session state is isolated. Both share the same Octokit instance, audit logger, cache, and observability middleware."
+                },
+                {
+                  "type": "prose",
+                  "body": "When PORT is set, two additional HTTP endpoints are available. GET /health returns { \"status\": \"ok\", \"linters\": [...] } — the linters array lists which linting engines were detected at startup (e.g. [\"eslint\", \"typescript\"]). An empty array means no ESLint config was found; a warning is also emitted in the startup log in that case. GET /audit serves the audit log dashboard."
                 }
               ]
             },
@@ -963,6 +1010,10 @@
                     {
                       "label": "Create a branch",
                       "summary": "Start a new line of work on a repository without affecting the main codebase."
+                    },
+                    {
+                      "label": "Write or update a file",
+                      "summary": "Create or overwrite a file in a repository on an existing branch and commit the change."
                     },
                     {
                       "label": "Open a pull request",
