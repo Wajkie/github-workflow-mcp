@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { Octokit } from "@octokit/rest";
@@ -69,6 +70,11 @@ async function main() {
     } catch { /* keep "unknown" if token cannot be resolved */ }
   }
 
+  if (!existsSync(config.lintCwd)) {
+    logger.error({ msg: "LINT_CWD directory does not exist — set LINT_CWD to the project root containing your ESLint config", lintCwd: config.lintCwd });
+    process.exit(1);
+  }
+
   const linters = detectLinters("src/placeholder.ts", config.lintCwd);
   if (!linters.includes("eslint")) {
     logger.warn({ msg: "ESLint config not found — lint_code and apply_safe_fixes will return no results", lintCwd: config.lintCwd });
@@ -95,7 +101,7 @@ async function main() {
       config.port,
       () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs),
       makeHealthCheck(linters),
-      { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions, getAuditEntries: config.databaseUrl ? auditDashboard : undefined },
+      { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions, sessionTtlMs: config.sessionTtlMs, getAuditEntries: config.databaseUrl ? auditDashboard : undefined },
     );
   }
 

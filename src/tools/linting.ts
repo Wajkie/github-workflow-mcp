@@ -28,8 +28,12 @@ export interface StructuredEdit {
   edit: string | null;
 }
 
-const ESLINT_CONFIGS = [
+export const ESLINT_FLAT_CONFIGS = [
   "eslint.config.js", "eslint.config.mjs", "eslint.config.cjs",
+];
+
+export const ESLINT_CONFIGS = [
+  ...ESLINT_FLAT_CONFIGS,
   ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml",
 ];
 
@@ -133,8 +137,11 @@ export async function applyAutofix(
   content: string,
   filePath: string,
   lintCwd = process.cwd(),
+  overrideConfigFile?: string,
 ): Promise<{ fixed: string; fixApplied: boolean }> {
-  const eslint = new ESLint({ fix: true, cwd: lintCwd });
+  const eslintOptions: ESLint.Options = { fix: true, cwd: lintCwd };
+  if (overrideConfigFile) eslintOptions.overrideConfigFile = overrideConfigFile;
+  const eslint = new ESLint(eslintOptions);
   const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
   if (!result) return { fixed: content, fixApplied: false };
   const fixed = result.output ?? content;

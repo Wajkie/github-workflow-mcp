@@ -9,10 +9,11 @@ export interface HttpServerOptions {
   secret?: string;
   maxBodyBytes: number;
   maxSessions: number;
+  sessionTtlMs?: number;
   getAuditEntries?: AuditDashboard;
 }
 
-const DEFAULT_OPTIONS: HttpServerOptions = { maxBodyBytes: 1_048_576, maxSessions: 100 };
+const DEFAULT_OPTIONS: HttpServerOptions = { maxBodyBytes: 1_048_576, maxSessions: 100, sessionTtlMs: 1_800_000 };
 
 export async function startHttpServer(
   port: number,
@@ -21,9 +22,25 @@ export async function startHttpServer(
   options: HttpServerOptions = DEFAULT_OPTIONS,
 ): Promise<void> {
   const transports = new Map<string, StreamableHTTPServerTransport>();
+  const lastSeen = new Map<string, number>();
+
+  const ttl = options.sessionTtlMs ?? 1_800_000;
+  const cleanupInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [sid, ts] of lastSeen) {
+      if (now - ts > ttl) {
+        lastSeen.delete(sid);
+        const stale = transports.get(sid);
+        transports.delete(sid);
+        if (stale) void stale.close().catch(() => {});
+        logger.info({ msg: "Evicted stale MCP session", sessionId: sid, idleMs: now - ts });
+      }
+    }
+  }, Math.min(ttl / 2, 60_000));
+  cleanupInterval.unref();
 
   const httpServer = createServer((req, res) => {
-    void dispatch(req, res, port, transports, serverFactory, getHealth, options.getAuditEntries, options);
+    void dispatch(req, res, port, transports, lastSeen, serverFactory, getHealth, options.getAuditEntries, options);
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -44,6 +61,7 @@ async function dispatch(
   res: ServerResponse,
   port: number,
   transports: Map<string, StreamableHTTPServerTransport>,
+  lastSeen: Map<string, number>,
   serverFactory: () => Promise<McpServer>,
   getHealth: () => object,
   getAuditEntries: AuditDashboard | undefined,
@@ -91,6 +109,7 @@ async function dispatch(
         jsonResponse(res, 404, { error: "Session not found" });
         return;
       }
+      lastSeen.set(sessionId, Date.now());
       await transport.handleRequest(req, res);
       return;
     }
@@ -104,10 +123,14 @@ async function dispatch(
       sessionIdGenerator: () => randomUUID(),
       onsessioninitialized: (sid) => {
         transports.set(sid, transport);
+        lastSeen.set(sid, Date.now());
       },
     });
     transport.onclose = () => {
-      if (transport.sessionId) transports.delete(transport.sessionId);
+      if (transport.sessionId) {
+        transports.delete(transport.sessionId);
+        lastSeen.delete(transport.sessionId);
+      }
     };
     const mcpServer = await serverFactory();
     await mcpServer.connect(transport);

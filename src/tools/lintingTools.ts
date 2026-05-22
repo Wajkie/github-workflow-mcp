@@ -1,3 +1,6 @@
+import { writeFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { extname, join } from "node:path";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
@@ -9,6 +12,7 @@ import {
   suggestFixes,
   applyAutofix,
   generateUnifiedDiff,
+  ESLINT_FLAT_CONFIGS,
   type LintViolation,
 } from "./linting.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
@@ -16,6 +20,26 @@ import { writeDenied } from "./writeGate.js";
 import { createBranch, writeFileToRepo } from "./githubWrite.js";
 import type { AuditLogger } from "../audit.js";
 import { ok, toErrorContent } from "./response.js";
+
+async function fetchRepoEslintConfig(
+  octokit: Octokit,
+  org: string,
+  repo: string,
+  ref: string,
+): Promise<{ content: string; ext: string } | null> {
+  for (const filename of ESLINT_FLAT_CONFIGS) {
+    try {
+      const { data } = await octokit.rest.repos.getContent({ owner: org, repo, path: filename, ref });
+      if (!Array.isArray(data) && "content" in data && data.encoding === "base64") {
+        return {
+          content: Buffer.from((data.content as string).replace(/\n/g, ""), "base64").toString("utf-8"),
+          ext: extname(filename),
+        };
+      }
+    } catch { /* file not found in repo — try next */ }
+  }
+  return null;
+}
 
 export function registerLintingTools(
   server: McpServer,
@@ -127,7 +151,7 @@ export function registerLintingTools(
     "apply_safe_fixes",
     {
       description:
-        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) and commit the result to a branch. Returns a unified diff of the changes. Never modifies logic, types, or renames. Requires ALLOW_WRITES=true — use suggest_fixes first if unsure what will change. To write to an existing branch set only `branch`. To create a new branch first, set both `branch` (new name) and `base_branch` (source).",
+        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) and commit the result to a branch. Returns a unified diff of the changes. Never modifies logic, types, or renames. Requires ALLOW_WRITES=true — use suggest_fixes first if unsure what will change. To write to an existing branch set only `branch`. To create a new branch first, set both `branch` (new name) and `base_branch` (source). By default fetches and applies the target repo's own ESLint config; set use_repo_config: false to use the server's config instead.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         path: z.string().describe("File path within the repository (e.g. 'src/utils.ts')"),
@@ -140,15 +164,43 @@ export function registerLintingTools(
           .string()
           .optional()
           .describe("If provided, creates `branch` from this base before committing. Omit to write to an already-existing branch."),
+        use_repo_config: z
+          .boolean()
+          .optional()
+          .describe("When true (default), fetches the target repo's ESLint flat config and applies it. Falls back to the server config if the repo has none or if loading it fails. Set to false to always use the server's own ESLint config."),
       },
     },
-    async ({ repo, path, content, branch, base_branch: baseBranch }) => {
+    async ({ repo, path, content, branch, base_branch: baseBranch, use_repo_config: useRepoConfig = true }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
+
+      let tempConfigPath: string | undefined;
+      let repoConfigUsed = false;
+
       try {
-        const { fixed, fixApplied } = await applyAutofix(content, path, lintCwd);
+        if (useRepoConfig) {
+          const fetched = await fetchRepoEslintConfig(octokit, org, repo, branch);
+          if (fetched) {
+            tempConfigPath = join(lintCwd, `.eslint-repo-${randomUUID()}${fetched.ext}`);
+            await writeFile(tempConfigPath, fetched.content, "utf-8");
+          }
+        }
+
+        let fixed: string;
+        let fixApplied: boolean;
+        if (tempConfigPath) {
+          try {
+            ({ fixed, fixApplied } = await applyAutofix(content, path, lintCwd, tempConfigPath));
+            repoConfigUsed = true;
+          } catch {
+            ({ fixed, fixApplied } = await applyAutofix(content, path, lintCwd));
+          }
+        } else {
+          ({ fixed, fixApplied } = await applyAutofix(content, path, lintCwd));
+        }
+
         if (!fixApplied) {
-          return ok({ message: "No autofixable violations found. No changes were made.", diff: "" });
+          return ok({ message: "No autofixable violations found. No changes were made.", diff: "", repoConfigUsed });
         }
         if (baseBranch) {
           await createBranch(octokit, org, repo, branch, baseBranch);
@@ -165,7 +217,7 @@ export function registerLintingTools(
           outcome: "success",
           actor,
         });
-        return ok({ branch, diff });
+        return ok({ branch, diff, repoConfigUsed });
       } catch (err) {
         await auditLog({
           tool: "apply_safe_fixes",
@@ -175,6 +227,10 @@ export function registerLintingTools(
           actor,
         });
         return toErrorContent(err);
+      } finally {
+        if (tempConfigPath) {
+          try { await unlink(tempConfigPath); } catch {}
+        }
       }
     },
   );
