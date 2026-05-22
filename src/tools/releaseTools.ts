@@ -3,10 +3,7 @@ import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import { getReleaseStatus, getRecentDeployments } from "./release.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerReleaseTools(
   server: McpServer,
@@ -22,8 +19,12 @@ export function registerReleaseTools(
     },
     async ({ repo }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getReleaseStatus(octokit, org, repo);
-      return ok(data);
+      try {
+        const data = await getReleaseStatus(octokit, org, repo);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -35,8 +36,12 @@ export function registerReleaseTools(
     },
     async ({ repo }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const runs = await getRecentDeployments(octokit, org, repo);
-      return ok({ runs });
+      try {
+        const runs = await getRecentDeployments(octokit, org, repo);
+        return ok({ runs });
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }

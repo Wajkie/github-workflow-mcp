@@ -1,10 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { KnowledgeSearcher } from "../knowledge/search.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerKnowledgeTools(server: McpServer, searcher: KnowledgeSearcher): void {
   server.registerTool(
@@ -15,8 +12,12 @@ export function registerKnowledgeTools(server: McpServer, searcher: KnowledgeSea
       inputSchema: { query: z.string().describe("Search terms") },
     },
     async ({ query }) => {
-      const result = await searcher.search(query);
-      return ok(result);
+      try {
+        const result = await searcher.search(query);
+        return ok(result);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }

@@ -5,10 +5,7 @@ import { createBranch, createPullRequest, mergePr, requestReview } from "./githu
 import { denied, isRepoAllowed } from "./allowlist.js";
 import { writeDenied } from "./writeGate.js";
 import type { AuditLogger } from "../audit.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok } from "./response.js";
 
 export function registerGithubWriteTools(
   server: McpServer,

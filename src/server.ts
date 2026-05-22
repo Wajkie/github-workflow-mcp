@@ -28,16 +28,27 @@ export function getHealthStatus() {
   };
 }
 
-function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: Awaited<ReturnType<typeof createKnowledgeSearcher>>): McpServer {
-  const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+type KnowledgeSearcher = Awaited<ReturnType<typeof createKnowledgeSearcher>>;
+
+async function registerAllTools(
+  s: McpServer,
+  auditLog: AuditLogger,
+  actor: string,
+  knowledgeSearcher: KnowledgeSearcher,
+): Promise<void> {
   registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos);
   registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos);
   registerPullRequestTools(s, octokit, config.githubOrg, config.allowedRepos);
   registerLintingTools(s, octokit, config.githubOrg);
   registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
-  registerKnowledgeResources(s);
+  await registerKnowledgeResources(s);
   registerKnowledgeTools(s, knowledgeSearcher);
+}
+
+async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher): Promise<McpServer> {
+  const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+  await registerAllTools(s, auditLog, actor, knowledgeSearcher);
   return s;
 }
 
@@ -53,14 +64,7 @@ async function main() {
     } catch { /* keep "unknown" if token cannot be resolved */ }
   }
 
-  registerRepositoryTools(server, octokit, config.githubOrg, config.allowedRepos);
-  registerWorkTrackingTools(server, octokit, config.githubOrg, config.allowedRepos);
-  registerPullRequestTools(server, octokit, config.githubOrg, config.allowedRepos);
-  registerLintingTools(server, octokit, config.githubOrg);
-  registerGithubWriteTools(server, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
-  registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
-  registerKnowledgeResources(server);
-  registerKnowledgeTools(server, knowledgeSearcher);
+  registerAllTools(server, auditLog, actor, knowledgeSearcher);
 
   const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
   logger.info({

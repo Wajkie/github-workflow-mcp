@@ -6,7 +6,7 @@ import { logger } from "./logger.js";
 
 export async function startHttpServer(
   port: number,
-  serverFactory: () => McpServer,
+  serverFactory: () => Promise<McpServer>,
   getHealth: () => object,
 ): Promise<void> {
   const transports = new Map<string, StreamableHTTPServerTransport>();
@@ -28,7 +28,7 @@ async function dispatch(
   res: ServerResponse,
   port: number,
   transports: Map<string, StreamableHTTPServerTransport>,
-  serverFactory: () => McpServer,
+  serverFactory: () => Promise<McpServer>,
   getHealth: () => object,
 ): Promise<void> {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
@@ -59,7 +59,7 @@ async function dispatch(
     transport.onclose = () => {
       if (transport.sessionId) transports.delete(transport.sessionId);
     };
-    const mcpServer = serverFactory();
+    const mcpServer = await serverFactory();
     await mcpServer.connect(transport);
     await transport.handleRequest(req, res);
     if (transport.sessionId) {

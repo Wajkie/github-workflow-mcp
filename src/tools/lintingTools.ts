@@ -9,10 +9,7 @@ import {
   suggestFixes,
   type LintViolation,
 } from "./linting.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerLintingTools(server: McpServer, octokit: Octokit, org: string) {
   server.registerTool(
@@ -30,8 +27,12 @@ export function registerLintingTools(server: McpServer, octokit: Octokit, org: s
       },
     },
     async ({ content, filename }) => {
-      const violations = await lintCode(content, filename);
-      return ok(violations);
+      try {
+        const violations = await lintCode(content, filename);
+        return ok(violations);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -45,8 +46,12 @@ export function registerLintingTools(server: McpServer, octokit: Octokit, org: s
       },
     },
     async ({ diff }) => {
-      const violations = await validateDiff(diff);
-      return ok(violations);
+      try {
+        const violations = await validateDiff(diff);
+        return ok(violations);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -61,9 +66,13 @@ export function registerLintingTools(server: McpServer, octokit: Octokit, org: s
       },
     },
     async ({ repo, pr_number }) => {
-      const files = await getChangedFiles(octokit, org, repo, pr_number);
-      const violations = await validatePrFiles(files);
-      return ok(violations);
+      try {
+        const files = await getChangedFiles(octokit, org, repo, pr_number);
+        const violations = await validatePrFiles(files);
+        return ok(violations);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -89,8 +98,12 @@ export function registerLintingTools(server: McpServer, octokit: Octokit, org: s
       },
     },
     async ({ violations }) => {
-      const edits = suggestFixes(violations as LintViolation[]);
-      return ok(edits);
+      try {
+        const edits = suggestFixes(violations as LintViolation[]);
+        return ok(edits);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }

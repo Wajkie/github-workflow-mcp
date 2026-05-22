@@ -3,10 +3,7 @@ import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import { getActiveWork, getIssue, searchIssues } from "./workTracking.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerWorkTrackingTools(
   server: McpServer,
@@ -22,8 +19,12 @@ export function registerWorkTrackingTools(
       inputSchema: {},
     },
     async () => {
-      const data = await getActiveWork(octokit, org, allowedRepos);
-      return ok(data);
+      try {
+        const data = await getActiveWork(octokit, org, allowedRepos);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -39,8 +40,12 @@ export function registerWorkTrackingTools(
     },
     async ({ repo, issue_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getIssue(octokit, org, repo, issue_number);
-      return ok(data);
+      try {
+        const data = await getIssue(octokit, org, repo, issue_number);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -57,8 +62,12 @@ export function registerWorkTrackingTools(
     },
     async ({ repo, query, page }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await searchIssues(octokit, org, repo, query, page ?? 1);
-      return ok(data);
+      try {
+        const data = await searchIssues(octokit, org, repo, query, page ?? 1);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }

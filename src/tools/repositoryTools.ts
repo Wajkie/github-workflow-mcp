@@ -3,10 +3,7 @@ import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import { getFile, getRepository, listRepositories, searchCode } from "./repositories.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerRepositoryTools(
   server: McpServer,
@@ -21,8 +18,12 @@ export function registerRepositoryTools(
       inputSchema: {},
     },
     async () => {
-      const repos = await listRepositories(octokit, org);
-      return ok({ repos });
+      try {
+        const repos = await listRepositories(octokit, org);
+        return ok({ repos });
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -34,8 +35,12 @@ export function registerRepositoryTools(
     },
     async ({ repo }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getRepository(octokit, org, repo);
-      return ok(data);
+      try {
+        const data = await getRepository(octokit, org, repo);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -54,8 +59,12 @@ export function registerRepositoryTools(
     },
     async ({ repo, path, ref }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getFile(octokit, org, repo, path, ref);
-      return ok(data);
+      try {
+        const data = await getFile(octokit, org, repo, path, ref);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -71,8 +80,12 @@ export function registerRepositoryTools(
     },
     async ({ repo, query }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const items = await searchCode(octokit, org, repo, query);
-      return ok({ items });
+      try {
+        const items = await searchCode(octokit, org, repo, query);
+        return ok({ items });
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }

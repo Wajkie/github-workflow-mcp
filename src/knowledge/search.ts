@@ -1,5 +1,5 @@
 import { Pool } from "pg";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -74,9 +74,17 @@ export function chunkMarkdown(
 async function indexFiles(pool: Pool): Promise<void> {
   const files = (await readdir(knowledgeDir)).filter((f) => f.endsWith(".md"));
   for (const filename of files) {
+    const file = filename.replace(/\.md$/, "");
+    const fileStat = await stat(join(knowledgeDir, filename));
+    const { rows } = await pool.query<{ updated_at: Date }>(
+      "SELECT MAX(updated_at) AS updated_at FROM knowledge_chunks WHERE file = $1",
+      [file],
+    );
+    const lastIndexed = rows[0]?.updated_at;
+    if (lastIndexed && fileStat.mtime <= lastIndexed) continue;
+
     const content = await readFile(join(knowledgeDir, filename), "utf-8");
     const chunks = chunkMarkdown(filename, content);
-    const file = filename.replace(/\.md$/, "");
     await pool.query("DELETE FROM knowledge_chunks WHERE file = $1", [file]);
     for (const chunk of chunks) {
       await pool.query(

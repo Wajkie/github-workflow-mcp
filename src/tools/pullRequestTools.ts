@@ -3,10 +3,7 @@ import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
 import { getChangedFiles, getPr } from "./pullRequest.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
-
-function ok(data: unknown) {
-  return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
-}
+import { ok, toErrorContent } from "./response.js";
 
 export function registerPullRequestTools(
   server: McpServer,
@@ -26,8 +23,12 @@ export function registerPullRequestTools(
     },
     async ({ repo, pr_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getPr(octokit, org, repo, pr_number);
-      return ok(data);
+      try {
+        const data = await getPr(octokit, org, repo, pr_number);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 
@@ -43,8 +44,12 @@ export function registerPullRequestTools(
     },
     async ({ repo, pr_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
-      const data = await getChangedFiles(octokit, org, repo, pr_number);
-      return ok(data);
+      try {
+        const data = await getChangedFiles(octokit, org, repo, pr_number);
+        return ok(data);
+      } catch (err) {
+        return toErrorContent(err);
+      }
     },
   );
 }
