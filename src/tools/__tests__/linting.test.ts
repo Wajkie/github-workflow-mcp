@@ -173,6 +173,21 @@ describe("generateUnifiedDiff", () => {
   });
 });
 
+describe("size limits", () => {
+  it("lintCode rejects content exceeding 100 KB", async () => {
+    const large = "x".repeat(100_001);
+    await expect(lintCode(large, "src/example.ts")).rejects.toThrow("too large");
+  });
+  it("lintCode accepts content at the limit", async () => {
+    const atLimit = `export const x = 1;\n`.padEnd(100_000, " ");
+    await expect(lintCode(atLimit, "src/example.ts")).resolves.toBeInstanceOf(Array);
+  });
+  it("validateDiff rejects a diff exceeding 100 KB", async () => {
+    const large = "+".repeat(100_001);
+    await expect(validateDiff(large)).rejects.toThrow("too large");
+  });
+});
+
 describe("lintCode path normalization", () => {
   const code = `export const x = 1;\n`;
   it("does not throw for an absolute path outside cwd", async () => {

@@ -1,4 +1,5 @@
 import type { Octokit } from "@octokit/rest";
+import { sanitizeContent } from "../sanitize.js";
 
 export async function getPr(octokit: Octokit, org: string, repo: string, prNumber: number) {
   const { data } = await octokit.rest.pulls.get({
@@ -10,7 +11,7 @@ export async function getPr(octokit: Octokit, org: string, repo: string, prNumbe
   return {
     number: data.number,
     title: data.title,
-    body: data.body ?? null,
+    body: data.body ? sanitizeContent(data.body) : null,
     state: data.state,
     draft: data.draft ?? false,
     head: data.head.ref,

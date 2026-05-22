@@ -22,7 +22,10 @@ export function registerGithubWriteTools(
       description: "Create a new branch from a base ref in a repository.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
-        branch_name: z.string().describe("Name of the new branch"),
+        branch_name: z
+          .string()
+          .regex(/^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/, "Branch name may only contain letters, numbers, hyphens, underscores, dots, and slashes")
+          .describe("Name of the new branch"),
         base: z.string().describe("Branch, tag, or SHA to branch from"),
       },
     },

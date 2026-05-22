@@ -131,7 +131,10 @@ export function registerLintingTools(
         path: z.string().describe("File path within the repository (e.g. 'src/utils.ts')"),
         content: z.string().describe("Current file content to fix"),
         base_branch: z.string().describe("Branch to base the fix branch on (e.g. 'main')"),
-        branch_name: z.string().describe("Name for the new branch that will contain the fixes"),
+        branch_name: z
+          .string()
+          .regex(/^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/, "Branch name may only contain letters, numbers, hyphens, underscores, dots, and slashes")
+          .describe("Name for the new branch that will contain the fixes"),
       },
     },
     async ({ repo, path, content, base_branch: baseBranch, branch_name: branchName }) => {

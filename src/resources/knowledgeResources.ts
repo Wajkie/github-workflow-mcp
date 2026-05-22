@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { sanitizeContent } from "../knowledge/sanitize.js";
+import { sanitizeContent } from "../sanitize.js";
 
 const knowledgeDir = fileURLToPath(new URL("../../knowledge", import.meta.url));
 

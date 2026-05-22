@@ -33,6 +33,8 @@ const ESLINT_CONFIGS = [
   ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml",
 ];
 
+const MAX_LINT_BYTES = 100_000;
+
 const PRETTIER_CONFIGS = [
   ".prettierrc", ".prettierrc.json", ".prettierrc.js", ".prettierrc.cjs",
   ".prettierrc.yaml", ".prettierrc.yml", "prettier.config.js", "prettier.config.cjs",
@@ -121,6 +123,9 @@ async function lintWithTypescript(content: string, filename: string): Promise<Li
 }
 
 export async function lintCode(content: string, filename: string): Promise<LintViolation[]> {
+  if (content.length > MAX_LINT_BYTES) {
+    throw new Error(`Content too large to lint (${content.length} bytes, limit ${MAX_LINT_BYTES})`);
+  }
   const linters = detectLinters(filename);
   const all: LintViolation[] = [];
   if (linters.includes("eslint")) all.push(...(await lintWithEslint(content, filename)));
@@ -179,6 +184,9 @@ function parseUnifiedDiff(diff: string): ParsedFile[] {
 }
 
 export async function validateDiff(diff: string): Promise<DiffViolation[]> {
+  if (diff.length > MAX_LINT_BYTES) {
+    throw new Error(`Diff too large to lint (${diff.length} bytes, limit ${MAX_LINT_BYTES})`);
+  }
   const files = parseUnifiedDiff(diff);
   const results: DiffViolation[] = [];
   for (const file of files) {

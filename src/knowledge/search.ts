@@ -2,7 +2,7 @@ import { Pool } from "pg";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sanitizeContent } from "./sanitize.js";
+import { sanitizeContent } from "../sanitize.js";
 
 export interface SearchResult {
   file: string;
