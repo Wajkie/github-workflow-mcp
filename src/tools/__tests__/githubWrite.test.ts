@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Octokit } from "@octokit/rest";
-import { createBranch, createPullRequest, mergePr, requestReview } from "../githubWrite.js";
+import { createBranch, createPullRequest, mergePr, requestReview, writeFileToRepo } from "../githubWrite.js";
 
 function mockOctokit(overrides: Record<string, unknown> = {}): Octokit {
   return {
@@ -13,6 +13,10 @@ function mockOctokit(overrides: Record<string, unknown> = {}): Octokit {
         create: vi.fn(),
         requestReviewers: vi.fn(),
         merge: vi.fn(),
+      },
+      repos: {
+        getContent: vi.fn(),
+        createOrUpdateFileContents: vi.fn(),
       },
       ...overrides,
     },
@@ -108,5 +112,56 @@ describe("mergePr", () => {
     expect(merge).toHaveBeenCalledWith(
       expect.objectContaining({ merge_method: "rebase" }),
     );
+  });
+});
+
+describe("writeFileToRepo", () => {
+  it("creates a new file when the path does not exist yet", async () => {
+    const octokit = mockOctokit();
+    const getContent = octokit.rest.repos.getContent as unknown as ReturnType<typeof vi.fn>;
+    const createOrUpdate = octokit.rest.repos.createOrUpdateFileContents as unknown as ReturnType<typeof vi.fn>;
+    getContent.mockRejectedValue(Object.assign(new Error("Not Found"), { status: 404 }));
+    createOrUpdate.mockResolvedValue({});
+
+    await writeFileToRepo(octokit, "org", "repo", "src/new.ts", "const x = 1;", "add new file", "main");
+
+    expect(createOrUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "org",
+        repo: "repo",
+        path: "src/new.ts",
+        message: "add new file",
+        branch: "main",
+        content: Buffer.from("const x = 1;").toString("base64"),
+        sha: undefined,
+      }),
+    );
+  });
+
+  it("updates an existing file by passing its current sha", async () => {
+    const octokit = mockOctokit();
+    const getContent = octokit.rest.repos.getContent as unknown as ReturnType<typeof vi.fn>;
+    const createOrUpdate = octokit.rest.repos.createOrUpdateFileContents as unknown as ReturnType<typeof vi.fn>;
+    getContent.mockResolvedValue({ data: { sha: "existing-sha", type: "file" } });
+    createOrUpdate.mockResolvedValue({});
+
+    await writeFileToRepo(octokit, "org", "repo", "src/existing.ts", "updated content", "update file", "feature");
+
+    expect(createOrUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ sha: "existing-sha", branch: "feature" }),
+    );
+  });
+
+  it("encodes content as base64", async () => {
+    const octokit = mockOctokit();
+    (octokit.rest.repos.getContent as unknown as ReturnType<typeof vi.fn>).mockRejectedValue({ status: 404 });
+    const createOrUpdate = octokit.rest.repos.createOrUpdateFileContents as unknown as ReturnType<typeof vi.fn>;
+    createOrUpdate.mockResolvedValue({});
+
+    const content = "hello world";
+    await writeFileToRepo(octokit, "org", "repo", "file.txt", content, "msg", "main");
+
+    const call = createOrUpdate.mock.calls[0][0] as { content: string };
+    expect(call.content).toBe(Buffer.from(content).toString("base64"));
   });
 });

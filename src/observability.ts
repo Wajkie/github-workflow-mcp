@@ -1,4 +1,4 @@
-import { randomUUID } from "crypto";
+import { randomUUID } from "node:crypto";
 import { logger } from "./logger.js";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
@@ -25,6 +25,8 @@ function percentile(sorted: number[], p: number): number {
   const idx = Math.min(Math.floor(sorted.length * p), sorted.length - 1);
   return sorted[idx]!;
 }
+
+const LATENCY_WINDOW = 1000;
 
 export function createObservabilityMiddleware(interval: number) {
   const metrics = new Map<string, ToolMetrics>();
@@ -59,26 +61,25 @@ export function createObservabilityMiddleware(interval: number) {
     return async (...args: unknown[]) => {
       const requestId = randomUUID();
       const start = Date.now();
+      let outcome: "success" | "error" = "success";
+      let errorCategory: ErrorCategory | undefined;
       try {
-        const result = await handler(...args);
-        const durationMs = Date.now() - start;
-        logger.info({ msg: "tool_invocation", tool: toolName, requestId, durationMs, outcome: "success" });
-        const m = getOrCreate(toolName);
-        m.count++;
-        m.latencies.push(durationMs);
-        totalCalls++;
-        if (totalCalls % interval === 0) emitSummary();
-        return result;
+        return await handler(...args);
       } catch (err) {
+        outcome = "error";
+        errorCategory = categorizeError(err);
+        throw err;
+      } finally {
         const durationMs = Date.now() - start;
-        const errorCategory = categorizeError(err);
-        logger.info({ msg: "tool_invocation", tool: toolName, requestId, durationMs, outcome: "error", errorCategory });
+        const entry: Record<string, unknown> = { msg: "tool_invocation", tool: toolName, requestId, durationMs, outcome };
+        if (errorCategory !== undefined) entry.errorCategory = errorCategory;
+        logger.info(entry);
         const m = getOrCreate(toolName);
         m.count++;
+        if (m.latencies.length >= LATENCY_WINDOW) m.latencies.shift();
         m.latencies.push(durationMs);
         totalCalls++;
         if (totalCalls % interval === 0) emitSummary();
-        throw err;
       }
     };
   }

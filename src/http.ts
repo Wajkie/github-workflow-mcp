@@ -61,10 +61,10 @@ async function dispatch(
     };
     const mcpServer = await serverFactory();
     await mcpServer.connect(transport);
-    await transport.handleRequest(req, res);
     if (transport.sessionId) {
       transports.set(transport.sessionId, transport);
     }
+    await transport.handleRequest(req, res);
     return;
   }
 

@@ -19,12 +19,14 @@ import { createObservabilityMiddleware } from "./observability.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
 
-export const server = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+const SERVER_VERSION = "0.1.0";
+
+export const server = new McpServer({ name: "github-workflow-mcp", version: SERVER_VERSION });
 
 export function getHealthStatus() {
   return {
     status: "ok",
-    version: "0.1.0",
+    version: SERVER_VERSION,
     org: config.githubOrg,
     allowWrites: config.allowWrites,
   };
@@ -50,7 +52,7 @@ async function registerAllTools(
 }
 
 async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher, cache: CacheClient, obs: ReturnType<typeof createObservabilityMiddleware>): Promise<McpServer> {
-  const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+  const s = new McpServer({ name: "github-workflow-mcp", version: SERVER_VERSION });
   obs.instrument(s);
   await registerAllTools(s, auditLog, actor, knowledgeSearcher, cache);
   return s;
@@ -71,7 +73,7 @@ async function main() {
 
   const obs = createObservabilityMiddleware(config.metricsInterval);
   obs.instrument(server);
-  registerAllTools(server, auditLog, actor, knowledgeSearcher, cache);
+  await registerAllTools(server, auditLog, actor, knowledgeSearcher, cache);
 
   const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
   logger.info({
