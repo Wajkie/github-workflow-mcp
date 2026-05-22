@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Octokit } from "@octokit/rest";
 import { getActiveWork, getIssue, searchIssues } from "../workTracking.js";
 
-function makeIssueItem(overrides: Record<string, unknown> = {}) {
+function makeItem(overrides: Record<string, unknown> = {}) {
   return {
     number: 1,
     title: "Fix bug",
@@ -17,29 +17,23 @@ function makeIssueItem(overrides: Record<string, unknown> = {}) {
 function mockOctokit(overrides: Record<string, unknown> = {}): Octokit {
   return {
     rest: {
-      users: { getAuthenticated: vi.fn() },
-      issues: { get: vi.fn() },
-      search: { issuesAndPullRequests: vi.fn() },
+      issues: { get: vi.fn(), listForOrg: vi.fn() },
       ...overrides,
     },
+    request: vi.fn(),
   } as unknown as Octokit;
 }
 
 describe("getActiveWork", () => {
   it("returns prs and issues assigned to the authenticated user", async () => {
     const octokit = mockOctokit();
-    const fn = octokit.rest.users.getAuthenticated as unknown as ReturnType<typeof vi.fn>;
-    fn.mockResolvedValue({ data: { login: "testuser" } });
-
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn
-      .mockResolvedValueOnce({
-        data: { items: [makeIssueItem({ number: 10, title: "PR title" })] },
-      })
-      .mockResolvedValueOnce({
-        data: { items: [makeIssueItem({ number: 20, title: "Issue title" })] },
-      });
+    const listFn = octokit.rest.issues.listForOrg as unknown as ReturnType<typeof vi.fn>;
+    listFn.mockResolvedValue({
+      data: [
+        makeItem({ number: 10, title: "PR title", pull_request: { url: "https://github.com/org/repo/pull/10" } }),
+        makeItem({ number: 20, title: "Issue title" }),
+      ],
+    });
 
     const result = await getActiveWork(octokit, "my-org", "*");
 
@@ -51,22 +45,13 @@ describe("getActiveWork", () => {
 
   it("filters results by ALLOWED_REPOS when not wildcard", async () => {
     const octokit = mockOctokit();
-    (octokit.rest.users.getAuthenticated as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { login: "user" },
+    const listFn = octokit.rest.issues.listForOrg as unknown as ReturnType<typeof vi.fn>;
+    listFn.mockResolvedValue({
+      data: [
+        makeItem({ number: 1, repository_url: "https://api.github.com/repos/org/allowed-repo", pull_request: { url: "" } }),
+        makeItem({ number: 2, repository_url: "https://api.github.com/repos/org/other-repo", pull_request: { url: "" } }),
+      ],
     });
-
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn
-      .mockResolvedValueOnce({
-        data: {
-          items: [
-            makeIssueItem({ number: 1, repository_url: "https://api.github.com/repos/org/allowed-repo" }),
-            makeIssueItem({ number: 2, repository_url: "https://api.github.com/repos/org/other-repo" }),
-          ],
-        },
-      })
-      .mockResolvedValueOnce({ data: { items: [] } });
 
     const result = await getActiveWork(octokit, "my-org", "allowed-repo");
 
@@ -74,20 +59,14 @@ describe("getActiveWork", () => {
     expect(result.pull_requests[0].repo).toBe("allowed-repo");
   });
 
-  it("uses org scope in search queries", async () => {
+  it("calls listForOrg with the given org", async () => {
     const octokit = mockOctokit();
-    (octokit.rest.users.getAuthenticated as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
-      data: { login: "user" },
-    });
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn.mockResolvedValue({ data: { items: [] } });
+    const listFn = octokit.rest.issues.listForOrg as unknown as ReturnType<typeof vi.fn>;
+    listFn.mockResolvedValue({ data: [] });
 
     await getActiveWork(octokit, "my-org", "*");
 
-    expect(searchFn).toHaveBeenCalledWith(
-      expect.objectContaining({ q: expect.stringContaining("org:my-org") }),
-    );
+    expect(listFn).toHaveBeenCalledWith(expect.objectContaining({ org: "my-org", filter: "assigned" }));
   });
 });
 
@@ -165,12 +144,10 @@ describe("getIssue", () => {
 describe("searchIssues", () => {
   it("returns paginated results capped at 20", async () => {
     const octokit = mockOctokit();
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn.mockResolvedValue({
+    (octokit.request as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
       data: {
         total_count: 42,
-        items: [makeIssueItem({ number: 3, title: "Found issue", state: "open", labels: [] })],
+        items: [makeItem({ number: 3, title: "Found issue", state: "open", labels: [] })],
       },
     });
 
@@ -184,25 +161,27 @@ describe("searchIssues", () => {
 
   it("scopes search to the given repo", async () => {
     const octokit = mockOctokit();
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn.mockResolvedValue({ data: { total_count: 0, items: [] } });
+    const requestFn = octokit.request as unknown as ReturnType<typeof vi.fn>;
+    requestFn.mockResolvedValue({ data: { total_count: 0, items: [] } });
 
     await searchIssues(octokit, "my-org", "my-repo", "login");
 
-    expect(searchFn).toHaveBeenCalledWith(
+    expect(requestFn).toHaveBeenCalledWith(
+      "GET /search/issues",
       expect.objectContaining({ q: expect.stringContaining("repo:my-org/my-repo") }),
     );
   });
 
   it("defaults to page 1", async () => {
     const octokit = mockOctokit();
-    const searchFn = octokit.rest.search
-      .issuesAndPullRequests as unknown as ReturnType<typeof vi.fn>;
-    searchFn.mockResolvedValue({ data: { total_count: 0, items: [] } });
+    const requestFn = octokit.request as unknown as ReturnType<typeof vi.fn>;
+    requestFn.mockResolvedValue({ data: { total_count: 0, items: [] } });
 
     const result = await searchIssues(octokit, "org", "repo", "query");
     expect(result.page).toBe(1);
-    expect(searchFn).toHaveBeenCalledWith(expect.objectContaining({ page: 1 }));
+    expect(requestFn).toHaveBeenCalledWith(
+      "GET /search/issues",
+      expect.objectContaining({ page: 1 }),
+    );
   });
 });

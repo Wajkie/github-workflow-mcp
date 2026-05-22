@@ -5,44 +5,30 @@ export async function getActiveWork(
   org: string,
   allowedRepos: string,
 ) {
-  const { data: user } = await octokit.rest.users.getAuthenticated();
-  const login = user.login;
-
-  const [prsResult, issuesResult] = await Promise.all([
-    octokit.rest.search.issuesAndPullRequests({
-      q: `is:open is:pr assignee:${login} org:${org}`,
-      per_page: 50,
-    }),
-    octokit.rest.search.issuesAndPullRequests({
-      q: `is:open is:issue assignee:${login} org:${org}`,
-      per_page: 50,
-    }),
-  ]);
+  const { data } = await octokit.rest.issues.listForOrg({
+    org,
+    state: "open",
+    filter: "assigned",
+    per_page: 50,
+  });
 
   const allowed =
     allowedRepos === "*" ? null : new Set(allowedRepos.split(",").map((r) => r.trim()));
 
-  function filterByAllowed<T extends { repository_url: string }>(items: T[]): T[] {
-    if (!allowed) return items;
-    return items.filter((item) => {
-      const repo = item.repository_url.split("/").pop() ?? "";
-      return allowed.has(repo);
-    });
-  }
+  const items = allowed
+    ? data.filter((item) => allowed.has(item.repository_url.split("/").pop() ?? ""))
+    : data;
+
+  const toEntry = (item: typeof items[number]) => ({
+    repo: item.repository_url.split("/").pop(),
+    number: item.number,
+    title: item.title,
+    url: item.html_url,
+  });
 
   return {
-    pull_requests: filterByAllowed(prsResult.data.items).map((pr) => ({
-      repo: pr.repository_url.split("/").pop(),
-      number: pr.number,
-      title: pr.title,
-      url: pr.html_url,
-    })),
-    issues: filterByAllowed(issuesResult.data.items).map((issue) => ({
-      repo: issue.repository_url.split("/").pop(),
-      number: issue.number,
-      title: issue.title,
-      url: issue.html_url,
-    })),
+    pull_requests: items.filter((i) => !!i.pull_request).map(toEntry),
+    issues: items.filter((i) => !i.pull_request).map(toEntry),
   };
 }
 
@@ -76,7 +62,7 @@ export async function searchIssues(
   query: string,
   page = 1,
 ) {
-  const { data } = await octokit.rest.search.issuesAndPullRequests({
+  const { data } = await octokit.request("GET /search/issues", {
     q: `${query} repo:${org}/${repo} is:issue`,
     per_page: 20,
     page,
