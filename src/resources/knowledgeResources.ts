@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { readFile, readdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { wrapWithDataBoundary } from "../knowledge/sanitize.js";
 
 const knowledgeDir = fileURLToPath(new URL("../../knowledge", import.meta.url));
 
@@ -63,7 +64,8 @@ export async function registerKnowledgeResources(server: McpServer): Promise<voi
       uri,
       { description, mimeType: "text/markdown" },
       async (resourceUri) => {
-        const text = await readFile(join(knowledgeDir, filename), "utf-8");
+        const raw = await readFile(join(knowledgeDir, filename), "utf-8");
+        const text = wrapWithDataBoundary(raw, slug);
         return {
           contents: [{ uri: resourceUri.toString(), mimeType: "text/markdown", text }],
         };
