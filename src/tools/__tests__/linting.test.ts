@@ -173,6 +173,19 @@ describe("generateUnifiedDiff", () => {
   });
 });
 
+describe("lintCode path normalization", () => {
+  const code = `export const x = 1;\n`;
+  it("does not throw for an absolute path outside cwd", async () => {
+    await expect(lintCode(code, "/tmp/evil/src/file.ts")).resolves.toBeInstanceOf(Array);
+  });
+  it("does not throw for a path traversal filename", async () => {
+    await expect(lintCode(code, "../../etc/passwd.ts")).resolves.toBeInstanceOf(Array);
+  });
+  it("accepts a normal relative path", async () => {
+    await expect(lintCode(code, "src/example.ts")).resolves.toBeInstanceOf(Array);
+  });
+});
+
 describe("suggestFixes", () => {
   it("returns only violations that have a suggestedFix", () => {
     const violations: LintViolation[] = [

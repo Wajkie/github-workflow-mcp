@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { writeFile, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
-import { extname, basename, join } from "node:path";
+import { extname, basename, join, resolve, relative, isAbsolute } from "node:path";
 import { ESLint } from "eslint";
 import ts from "typescript";
 
@@ -37,6 +38,16 @@ const PRETTIER_CONFIGS = [
   ".prettierrc.yaml", ".prettierrc.yml", "prettier.config.js", "prettier.config.cjs",
 ];
 
+function safeLintPath(filename: string): string {
+  const cwd = process.cwd();
+  const resolved = resolve(cwd, filename);
+  const rel = relative(cwd, resolved);
+  if (isAbsolute(rel) || rel.startsWith("..")) {
+    return join(cwd, basename(filename));
+  }
+  return resolved;
+}
+
 export function detectLinters(filename: string): string[] {
   const linters: string[] = [];
   const ext = extname(filename);
@@ -51,7 +62,7 @@ export function detectLinters(filename: string): string[] {
 async function lintWithEslint(content: string, filePath: string): Promise<LintViolation[]> {
   try {
     const eslint = new ESLint();
-    const [result] = await eslint.lintText(content, { filePath });
+    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath) });
     if (!result) return [];
     return result.messages.map((msg) => ({
       linter: "eslint",
@@ -71,7 +82,7 @@ async function lintWithEslint(content: string, filePath: string): Promise<LintVi
 const MODULE_RESOLUTION_CODES = new Set([2304, 2305, 2306, 2307, 2308, 2309, 7016, 7026]);
 
 async function lintWithTypescript(content: string, filename: string): Promise<LintViolation[]> {
-  const tmpFile = join(tmpdir(), `mcp-ts-${Date.now()}-${basename(filename)}`);
+  const tmpFile = join(tmpdir(), `mcp-ts-${randomUUID()}-${basename(filename)}`);
   try {
     await writeFile(tmpFile, content, "utf-8");
     const program = ts.createProgram([tmpFile], {

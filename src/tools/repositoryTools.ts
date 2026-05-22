@@ -86,7 +86,12 @@ export function registerRepositoryTools(
         "Search for code within a repository. Returns file path, line number, and matched snippet.",
       inputSchema: {
         repo: z.string().describe("Repository name"),
-        query: z.string().describe("Search query"),
+        query: z
+          .string()
+          .describe("Search query")
+          .refine((q) => !/(?:^|\s)\w+:(?!\/)/.test(q), {
+            message: "Query must not contain GitHub search qualifier syntax (e.g. repo:, org:)",
+          }),
       },
     },
     async ({ repo, query }) => {

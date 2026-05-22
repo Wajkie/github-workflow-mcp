@@ -24,12 +24,7 @@ const SERVER_VERSION = "0.1.0";
 export const server = new McpServer({ name: "github-workflow-mcp", version: SERVER_VERSION });
 
 export function getHealthStatus() {
-  return {
-    status: "ok",
-    version: SERVER_VERSION,
-    org: config.githubOrg,
-    allowWrites: config.allowWrites,
-  };
+  return { status: "ok" };
 }
 
 type KnowledgeSearcher = Awaited<ReturnType<typeof createKnowledgeSearcher>>;
@@ -87,7 +82,12 @@ async function main() {
   });
 
   if (config.port !== undefined) {
-    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs), getHealthStatus);
+    await startHttpServer(
+      config.port,
+      () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs),
+      getHealthStatus,
+      { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions },
+    );
   }
 
   const stdioTransport = new StdioServerTransport();

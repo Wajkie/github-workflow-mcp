@@ -67,7 +67,12 @@ export function registerWorkTrackingTools(
         "Search issues in a repository using GitHub query syntax. Returns up to 20 results per page.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
-        query: z.string().describe("GitHub issue search query"),
+        query: z
+          .string()
+          .describe("GitHub issue search query")
+          .refine((q) => !/(?:^|\s)\w+:(?!\/)/.test(q), {
+            message: "Query must not contain GitHub search qualifier syntax (e.g. repo:, org:)",
+          }),
         page: z.number().optional().describe("Page number (default: 1)"),
       },
     },

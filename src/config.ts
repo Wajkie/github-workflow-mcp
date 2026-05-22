@@ -26,4 +26,7 @@ export const config = {
     files: parseInt(process.env["CACHE_TTL_FILES"] ?? "600", 10),
   },
   metricsInterval: parseInt(process.env["METRICS_INTERVAL"] ?? "100", 10),
+  mcpSecret: process.env["MCP_SECRET"],
+  maxBodyBytes: parseInt(process.env["MAX_BODY_BYTES"] ?? "1048576", 10),
+  maxSessions: parseInt(process.env["MAX_SESSIONS"] ?? "100", 10),
 } as const;
