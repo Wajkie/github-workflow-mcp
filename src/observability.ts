@@ -83,12 +83,15 @@ export function createObservabilityMiddleware(interval: number) {
     };
   }
 
+  type PatchableServer = {
+    registerTool: (name: string, config: unknown, handler: AnyHandler) => unknown;
+  };
+
   function instrument(server: McpServer): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = server as any;
-    const original = s.registerTool.bind(server);
-    s.registerTool = (name: string, schema: unknown, handler: AnyHandler) =>
-      original(name, schema, wrapHandler(name, handler));
+    const s = server as unknown as PatchableServer;
+    const original = s.registerTool.bind(s);
+    s.registerTool = (name: string, config: unknown, handler: AnyHandler) =>
+      original(name, config, wrapHandler(name, handler));
   }
 
   return { instrument, emitSummary };
