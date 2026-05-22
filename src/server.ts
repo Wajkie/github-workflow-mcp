@@ -10,6 +10,7 @@ import { registerRepositoryTools } from "./tools/repositoryTools.js";
 import { registerPullRequestTools } from "./tools/pullRequestTools.js";
 import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
 import { registerLintingTools } from "./tools/lintingTools.js";
+import { detectLinters } from "./tools/linting.js";
 import { registerGithubWriteTools } from "./tools/githubWriteTools.js";
 import { registerReleaseTools } from "./tools/releaseTools.js";
 import { registerCiTools } from "./tools/ciTools.js";
@@ -24,8 +25,8 @@ const SERVER_VERSION = "0.1.0";
 
 export const server = new McpServer({ name: "github-workflow-mcp", version: SERVER_VERSION });
 
-export function getHealthStatus() {
-  return { status: "ok" };
+export function makeHealthCheck(linters: string[]) {
+  return () => ({ status: "ok" as const, linters });
 }
 
 type KnowledgeSearcher = Awaited<ReturnType<typeof createKnowledgeSearcher>>;
@@ -68,6 +69,11 @@ async function main() {
     } catch { /* keep "unknown" if token cannot be resolved */ }
   }
 
+  const linters = detectLinters("src/placeholder.ts", config.lintCwd);
+  if (!linters.includes("eslint")) {
+    logger.warn({ msg: "ESLint config not found — lint_code and apply_safe_fixes will return no results", lintCwd: config.lintCwd });
+  }
+
   const obs = createObservabilityMiddleware(config.metricsInterval);
   obs.instrument(server);
   await registerAllTools(server, auditLog, actor, knowledgeSearcher, cache);
@@ -81,13 +87,14 @@ async function main() {
     allowWrites: config.allowWrites,
     auditEnabled: !!config.databaseUrl,
     cacheEnabled: !!config.redisUrl,
+    linters,
   });
 
   if (config.port !== undefined) {
     await startHttpServer(
       config.port,
       () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs),
-      getHealthStatus,
+      makeHealthCheck(linters),
       { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions, getAuditEntries: config.databaseUrl ? auditDashboard : undefined },
     );
   }
