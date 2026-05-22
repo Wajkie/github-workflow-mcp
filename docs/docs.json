@@ -895,6 +895,23 @@
                   "type": "callout",
                   "variant": "info",
                   "body": "The two layers do not talk to each other. If a convention can be expressed as a lint rule, put it there — it will always be checked. If it requires judgment, put it in knowledge/ and add a system-prompt instruction telling the agent to call search_knowledge at the start of any coding task."
+                },
+                {
+                  "type": "prose",
+                  "body": "The knowledge base is language-agnostic. You can document conventions for any language — Python, Go, C#, Rust — as plain Markdown. An agent reading knowledge/python-conventions.md before touching a .py file works exactly the same as one reading TypeScript guidelines."
+                },
+                {
+                  "type": "prose",
+                  "body": "This enables a more powerful pattern: use the knowledge base as the source of truth and generate lint configs from it. An agent can read a conventions file, translate the rules into an ESLint config, a Ruff config, a Pylint config, or equivalent, and commit it via create_or_update_file. The lint config becomes a generated artifact of the knowledge base rather than a separately maintained file — changes to the documented convention can be propagated into enforcement automatically."
+                },
+                {
+                  "type": "steps",
+                  "items": [
+                    "Write your convention in knowledge/conventions.md in plain language",
+                    "Ask the agent to read the file and generate the corresponding lint config for your language",
+                    "Agent commits the config via create_or_update_file on a new branch",
+                    "Review and merge — the convention is now enforced on every future lint call"
+                  ]
                 }
               ]
             }
