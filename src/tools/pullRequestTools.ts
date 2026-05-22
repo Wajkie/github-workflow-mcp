@@ -25,14 +25,14 @@ export function registerPullRequestTools(
         pr_number: z.number().describe("Pull request number"),
       },
     },
-    async ({ repo, pr_number }) => {
+    async ({ repo, pr_number: prNumber }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
         const data = await withCache(
           cache,
-          `get_pr:${org}:${repo}:${pr_number}`,
+          `get_pr:${org}:${repo}:${prNumber}`,
           ttl.prs,
-          () => getPr(octokit, org, repo, pr_number),
+          () => getPr(octokit, org, repo, prNumber),
         );
         return ok(data);
       } catch (err) {
@@ -51,14 +51,14 @@ export function registerPullRequestTools(
         pr_number: z.number().describe("Pull request number"),
       },
     },
-    async ({ repo, pr_number }) => {
+    async ({ repo, pr_number: prNumber }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
         const data = await withCache(
           cache,
-          `get_changed_files:${org}:${repo}:${pr_number}`,
+          `get_changed_files:${org}:${repo}:${prNumber}`,
           ttl.prs,
-          () => getChangedFiles(octokit, org, repo, pr_number),
+          () => getChangedFiles(octokit, org, repo, prNumber),
         );
         return ok(data);
       } catch (err) {

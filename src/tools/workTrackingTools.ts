@@ -44,14 +44,14 @@ export function registerWorkTrackingTools(
         issue_number: z.number().describe("Issue number"),
       },
     },
-    async ({ repo, issue_number }) => {
+    async ({ repo, issue_number: issueNumber }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
         const data = await withCache(
           cache,
-          `get_issue:${org}:${repo}:${issue_number}`,
+          `get_issue:${org}:${repo}:${issueNumber}`,
           ttl.issues,
-          () => getIssue(octokit, org, repo, issue_number),
+          () => getIssue(octokit, org, repo, issueNumber),
         );
         return ok(data);
       } catch (err) {

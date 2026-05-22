@@ -26,15 +26,15 @@ export function registerGithubWriteTools(
         base: z.string().describe("Branch, tag, or SHA to branch from"),
       },
     },
-    async ({ repo, branch_name, base }) => {
+    async ({ repo, branch_name: branchName, base }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await createBranch(octokit, org, repo, branch_name, base);
-        await auditLog({ tool: "create_branch", inputs: { repo, branch_name, base }, outcome: "success", actor });
+        const data = await createBranch(octokit, org, repo, branchName, base);
+        await auditLog({ tool: "create_branch", inputs: { repo, branch_name: branchName, base }, outcome: "success", actor });
         return ok(data);
       } catch (err) {
-        await auditLog({ tool: "create_branch", inputs: { repo, branch_name, base }, outcome: "error", error: String(err), actor });
+        await auditLog({ tool: "create_branch", inputs: { repo, branch_name: branchName, base }, outcome: "error", error: String(err), actor });
         throw err;
       }
     },
@@ -76,15 +76,15 @@ export function registerGithubWriteTools(
         reviewers: z.array(z.string()).describe("GitHub usernames to request review from"),
       },
     },
-    async ({ repo, pr_number, reviewers }) => {
+    async ({ repo, pr_number: prNumber, reviewers }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await requestReview(octokit, org, repo, pr_number, reviewers);
-        await auditLog({ tool: "request_review", inputs: { repo, pr_number, reviewers }, outcome: "success", actor });
+        const data = await requestReview(octokit, org, repo, prNumber, reviewers);
+        await auditLog({ tool: "request_review", inputs: { repo, pr_number: prNumber, reviewers }, outcome: "success", actor });
         return ok(data);
       } catch (err) {
-        await auditLog({ tool: "request_review", inputs: { repo, pr_number, reviewers }, outcome: "error", error: String(err), actor });
+        await auditLog({ tool: "request_review", inputs: { repo, pr_number: prNumber, reviewers }, outcome: "error", error: String(err), actor });
         throw err;
       }
     },
@@ -103,15 +103,15 @@ export function registerGithubWriteTools(
           .describe("Merge method (default: squash)"),
       },
     },
-    async ({ repo, pr_number, method }) => {
+    async ({ repo, pr_number: prNumber, method }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await mergePr(octokit, org, repo, pr_number, method);
-        await auditLog({ tool: "merge_pr", inputs: { repo, pr_number, method }, outcome: "success", actor });
+        const data = await mergePr(octokit, org, repo, prNumber, method);
+        await auditLog({ tool: "merge_pr", inputs: { repo, pr_number: prNumber, method }, outcome: "success", actor });
         return ok(data);
       } catch (err) {
-        await auditLog({ tool: "merge_pr", inputs: { repo, pr_number, method }, outcome: "error", error: String(err), actor });
+        await auditLog({ tool: "merge_pr", inputs: { repo, pr_number: prNumber, method }, outcome: "error", error: String(err), actor });
         throw err;
       }
     },

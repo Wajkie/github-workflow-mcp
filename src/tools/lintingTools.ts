@@ -79,9 +79,9 @@ export function registerLintingTools(
         pr_number: z.number().describe("Pull request number"),
       },
     },
-    async ({ repo, pr_number }) => {
+    async ({ repo, pr_number: prNumber }) => {
       try {
-        const files = await getChangedFiles(octokit, org, repo, pr_number);
+        const files = await getChangedFiles(octokit, org, repo, prNumber);
         const violations = await validatePrFiles(files);
         return ok(violations);
       } catch (err) {
@@ -134,7 +134,7 @@ export function registerLintingTools(
         branch_name: z.string().describe("Name for the new branch that will contain the fixes"),
       },
     },
-    async ({ repo, path, content, base_branch, branch_name }) => {
+    async ({ repo, path, content, base_branch: baseBranch, branch_name: branchName }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
@@ -142,24 +142,24 @@ export function registerLintingTools(
         if (!fixApplied) {
           return ok({ message: "No autofixable violations found. No changes were made.", diff: "" });
         }
-        await createBranch(octokit, org, repo, branch_name, base_branch);
+        await createBranch(octokit, org, repo, branchName, baseBranch);
         await writeFileToRepo(
           octokit, org, repo, path, fixed,
           `fix(lint): apply safe autofixes to ${path}`,
-          branch_name,
+          branchName,
         );
         const diff = generateUnifiedDiff(content, fixed, path);
         await auditLog({
           tool: "apply_safe_fixes",
-          inputs: { repo, path, base_branch, branch_name },
+          inputs: { repo, path, base_branch: baseBranch, branch_name: branchName },
           outcome: "success",
           actor,
         });
-        return ok({ branch: branch_name, diff });
+        return ok({ branch: branchName, diff });
       } catch (err) {
         await auditLog({
           tool: "apply_safe_fixes",
-          inputs: { repo, path, base_branch, branch_name },
+          inputs: { repo, path, base_branch: baseBranch, branch_name: branchName },
           outcome: "error",
           error: String(err),
           actor,
