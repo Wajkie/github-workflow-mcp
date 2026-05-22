@@ -1,11 +1,11 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Octokit } from "@octokit/rest";
 import { z } from "zod";
-import { createBranch, createPullRequest, mergePr, requestReview } from "./githubWrite.js";
+import { createBranch, createPullRequest, mergePr, requestReview, writeFileToRepo } from "./githubWrite.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
 import { writeDenied } from "./writeGate.js";
 import type { AuditLogger } from "../audit.js";
-import { ok } from "./response.js";
+import { ok, toErrorContent } from "./response.js";
 
 export function registerGithubWriteTools(
   server: McpServer,
@@ -92,6 +92,33 @@ export function registerGithubWriteTools(
       } catch (err) {
         await auditLog({ tool: "request_review", inputs: { repo, pr_number: prNumber, reviewers }, outcome: "error", error: String(err), actor });
         throw err;
+      }
+    },
+  );
+
+  server.registerTool(
+    "create_or_update_file",
+    {
+      description:
+        "Write or update a single file in a repository on an existing branch. Requires ALLOW_WRITES=true. Use create_branch first if the branch doesn't exist yet.",
+      inputSchema: {
+        repo: z.string().describe("Repository name (without owner prefix)"),
+        path: z.string().describe("File path within the repository (e.g. 'src/router.ts')"),
+        content: z.string().describe("Full file content to write"),
+        branch: z.string().describe("Branch to commit to (must already exist)"),
+        commit_message: z.string().describe("Commit message"),
+      },
+    },
+    async ({ repo, path, content, branch, commit_message: commitMessage }) => {
+      if (!allowWrites) return writeDenied();
+      if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
+      try {
+        await writeFileToRepo(octokit, org, repo, path, content, commitMessage, branch);
+        await auditLog({ tool: "create_or_update_file", inputs: { repo, path, branch }, outcome: "success", actor });
+        return ok({ repo, path, branch, committed: true });
+      } catch (err) {
+        await auditLog({ tool: "create_or_update_file", inputs: { repo, path, branch }, outcome: "error", error: String(err), actor });
+        return toErrorContent(err);
       }
     },
   );

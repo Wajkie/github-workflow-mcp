@@ -60,22 +60,18 @@ export function detectLinters(filename: string, lintCwd = process.cwd()): string
 }
 
 async function lintWithEslint(content: string, filePath: string, lintCwd: string): Promise<LintViolation[]> {
-  try {
-    const eslint = new ESLint({ cwd: lintCwd });
-    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
-    if (!result) return [];
-    return result.messages.map((msg) => ({
-      linter: "eslint",
-      severity: msg.severity === 2 ? "error" : msg.severity === 1 ? "warning" : "info",
-      ruleId: msg.ruleId ?? null,
-      line: msg.line,
-      column: msg.column,
-      explanation: msg.message,
-      suggestedFix: msg.suggestions?.[0]?.desc ?? null,
-    }));
-  } catch {
-    return [];
-  }
+  const eslint = new ESLint({ cwd: lintCwd });
+  const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
+  if (!result) return [];
+  return result.messages.map((msg) => ({
+    linter: "eslint",
+    severity: msg.severity === 2 ? "error" : msg.severity === 1 ? "warning" : "info",
+    ruleId: msg.ruleId ?? null,
+    line: msg.line,
+    column: msg.column,
+    explanation: msg.message,
+    suggestedFix: msg.suggestions?.[0]?.desc ?? null,
+  }));
 }
 
 // Suppress "cannot find module/name" noise — expected when linting inline snippets
@@ -138,15 +134,11 @@ export async function applyAutofix(
   filePath: string,
   lintCwd = process.cwd(),
 ): Promise<{ fixed: string; fixApplied: boolean }> {
-  try {
-    const eslint = new ESLint({ fix: true, cwd: lintCwd });
-    const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
-    if (!result) return { fixed: content, fixApplied: false };
-    const fixed = result.output ?? content;
-    return { fixed, fixApplied: fixed !== content };
-  } catch {
-    return { fixed: content, fixApplied: false };
-  }
+  const eslint = new ESLint({ fix: true, cwd: lintCwd });
+  const [result] = await eslint.lintText(content, { filePath: safeLintPath(filePath, lintCwd) });
+  if (!result) return { fixed: content, fixApplied: false };
+  const fixed = result.output ?? content;
+  return { fixed, fixApplied: fixed !== content };
 }
 
 export { generateUnifiedDiff } from "./diff.js";

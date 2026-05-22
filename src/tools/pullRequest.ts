@@ -1,6 +1,33 @@
 import type { Octokit } from "@octokit/rest";
 import { sanitizeContent } from "../sanitize.js";
 
+export async function listPullRequests(
+  octokit: Octokit,
+  org: string,
+  repo: string,
+  state: "open" | "closed" | "all" = "open",
+) {
+  const { data } = await octokit.rest.pulls.list({
+    owner: org,
+    repo,
+    state,
+    per_page: 30,
+  });
+
+  return data.map((pr) => ({
+    number: pr.number,
+    title: pr.title,
+    state: pr.state,
+    draft: pr.draft ?? false,
+    head: pr.head.ref,
+    base: pr.base.ref,
+    author: pr.user?.login ?? null,
+    url: pr.html_url,
+    created_at: pr.created_at,
+    updated_at: pr.updated_at,
+  }));
+}
+
 export async function getPr(octokit: Octokit, org: string, repo: string, prNumber: number) {
   const { data } = await octokit.rest.pulls.get({
     owner: org,

@@ -127,19 +127,22 @@ export function registerLintingTools(
     "apply_safe_fixes",
     {
       description:
-        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) and commit the result to a new branch. Returns a unified diff of the changes. Never modifies logic, types, or renames. Requires ALLOW_WRITES=true — use suggest_fixes first if unsure what will change.",
+        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) and commit the result to a branch. Returns a unified diff of the changes. Never modifies logic, types, or renames. Requires ALLOW_WRITES=true — use suggest_fixes first if unsure what will change. To write to an existing branch set only `branch`. To create a new branch first, set both `branch` (new name) and `base_branch` (source).",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         path: z.string().describe("File path within the repository (e.g. 'src/utils.ts')"),
         content: z.string().describe("Current file content to fix"),
-        base_branch: z.string().describe("Branch to base the fix branch on (e.g. 'main')"),
-        branch_name: z
+        branch: z
           .string()
           .regex(/^[a-zA-Z0-9][a-zA-Z0-9._\-/]*$/, "Branch name may only contain letters, numbers, hyphens, underscores, dots, and slashes")
-          .describe("Name for the new branch that will contain the fixes"),
+          .describe("Branch to commit fixes to. If this branch does not yet exist, supply base_branch to create it."),
+        base_branch: z
+          .string()
+          .optional()
+          .describe("If provided, creates `branch` from this base before committing. Omit to write to an already-existing branch."),
       },
     },
-    async ({ repo, path, content, base_branch: baseBranch, branch_name: branchName }) => {
+    async ({ repo, path, content, branch, base_branch: baseBranch }) => {
       if (!allowWrites) return writeDenied();
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
@@ -147,24 +150,26 @@ export function registerLintingTools(
         if (!fixApplied) {
           return ok({ message: "No autofixable violations found. No changes were made.", diff: "" });
         }
-        await createBranch(octokit, org, repo, branchName, baseBranch);
+        if (baseBranch) {
+          await createBranch(octokit, org, repo, branch, baseBranch);
+        }
         await writeFileToRepo(
           octokit, org, repo, path, fixed,
           `fix(lint): apply safe autofixes to ${path}`,
-          branchName,
+          branch,
         );
         const diff = generateUnifiedDiff(content, fixed, path);
         await auditLog({
           tool: "apply_safe_fixes",
-          inputs: { repo, path, base_branch: baseBranch, branch_name: branchName },
+          inputs: { repo, path, branch, base_branch: baseBranch },
           outcome: "success",
           actor,
         });
-        return ok({ branch: branchName, diff });
+        return ok({ branch, diff });
       } catch (err) {
         await auditLog({
           tool: "apply_safe_fixes",
-          inputs: { repo, path, base_branch: baseBranch, branch_name: branchName },
+          inputs: { repo, path, branch, base_branch: baseBranch },
           outcome: "error",
           error: String(err),
           actor,

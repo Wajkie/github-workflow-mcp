@@ -8,6 +8,9 @@ export default tseslint.config(
   {
     files: ["src/**/*.ts"],
     rules: {
+      // Require semicolons (auto-fixable).
+      semi: ["error", "always"],
+
       // Allow _-prefixed parameters to mark intentionally unused ones.
       "@typescript-eslint/no-unused-vars": [
         "error",
