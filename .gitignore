@@ -2,3 +2,6 @@ node_modules/
 dist/
 .env
 *.js.map
+
+# Local Netlify folder
+.netlify

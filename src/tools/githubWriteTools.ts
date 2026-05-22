@@ -19,7 +19,8 @@ export function registerGithubWriteTools(
   server.registerTool(
     "create_branch",
     {
-      description: "Create a new branch from a base ref in a repository.",
+      description:
+        "Create a new branch from a base ref. Requires ALLOW_WRITES=true. Use this as the first step before writing files or opening a pull request.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         branch_name: z
@@ -46,7 +47,8 @@ export function registerGithubWriteTools(
   server.registerTool(
     "create_pull_request",
     {
-      description: "Open a pull request in a repository.",
+      description:
+        "Open a pull request between two branches. Requires ALLOW_WRITES=true. Use after pushing commits to a branch created with create_branch.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         title: z.string().describe("Pull request title"),
@@ -72,7 +74,8 @@ export function registerGithubWriteTools(
   server.registerTool(
     "request_review",
     {
-      description: "Add reviewers to a pull request.",
+      description:
+        "Add reviewer(s) to an open pull request. Requires ALLOW_WRITES=true. Use after create_pull_request when the PR is ready for human review.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         pr_number: z.number().describe("Pull request number"),
@@ -96,7 +99,8 @@ export function registerGithubWriteTools(
   server.registerTool(
     "merge_pr",
     {
-      description: "Merge a pull request. Defaults to squash merge.",
+      description:
+        "Merge a pull request. Requires ALLOW_WRITES=true. Only call when the PR is approved and CI checks have passed. Defaults to squash merge.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         pr_number: z.number().describe("Pull request number"),

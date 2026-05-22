@@ -18,7 +18,8 @@ export function registerRepositoryTools(
   server.registerTool(
     "list_repositories",
     {
-      description: "List repositories in the organisation",
+      description:
+        "List all repositories the server is configured to access. Use this to discover available repo names before calling any per-repo tool.",
       inputSchema: {},
     },
     async () => {
@@ -36,7 +37,8 @@ export function registerRepositoryTools(
   server.registerTool(
     "get_repository",
     {
-      description: "Get metadata for a single repository",
+      description:
+        "Get metadata for a single repository: description, default branch, visibility, topics, star count, and open issue count. Use before exploring a repo's contents or when you need repo-level context.",
       inputSchema: { repo: z.string().describe("Repository name (without owner prefix)") },
     },
     async ({ repo }) => {
@@ -55,7 +57,8 @@ export function registerRepositoryTools(
   server.registerTool(
     "get_file",
     {
-      description: "Read a file from a repository. Recursive/wildcard paths are rejected.",
+      description:
+        "Read a single file's contents from a repository. Use when you know the exact path. Recursive paths and wildcards are rejected — use search_code to locate unknown files first.",
       inputSchema: {
         repo: z.string().describe("Repository name"),
         path: z.string().describe("File path within the repository"),
@@ -83,7 +86,7 @@ export function registerRepositoryTools(
     "search_code",
     {
       description:
-        "Search for code within a repository. Returns file path, line number, and matched snippet.",
+        "Search for code across a repository by keyword or pattern. Returns file path, line number, and matched snippet. Use to locate unknown files or symbol definitions before reading them with get_file.",
       inputSchema: {
         repo: z.string().describe("Repository name"),
         query: z

@@ -341,7 +341,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Lint all changed files in a pull request.",
-      "description": "Fetch a pull request's changed files from GitHub and lint the modified content. Returns violations grouped by filename. Useful for automated PR review.",
+      "description": "Fetch a pull request's changed files from GitHub and lint the modified content. Returns violations grouped by filename. Respects the ALLOWED_REPOS allowlist. Use to check a PR for lint errors before reviewing or merging.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." }
@@ -407,7 +407,7 @@
       "category": "knowledge",
       "requiresWrites": false,
       "summary": "Search your team's engineering knowledge base.",
-      "description": "Search the engineering knowledge base using trigram similarity. Returns ranked excerpts with source file and section heading. Requires DATABASE_URL to be set.",
+      "description": "Search the engineering knowledge base for process docs, architecture notes, and coding guidelines using trigram similarity. Use before asking about team conventions, on-call runbooks, or project standards. Returns ranked excerpts with source file and section heading. Requires DATABASE_URL to be set.",
       "inputs": [
         { "name": "query", "type": "string", "required": true, "description": "Search terms." }
       ],
@@ -428,7 +428,7 @@
       "category": "write",
       "requiresWrites": true,
       "summary": "Create a new branch in a repository.",
-      "description": "Create a new branch from a base ref. Resolves the base SHA automatically. Branch name is validated against a safe character allowlist before the request is sent. Requires ALLOW_WRITES=true.",
+      "description": "Create a new branch from a base ref. Resolves the base SHA automatically. Branch name is validated against a safe character allowlist before the request is sent. Use this as the first step before writing files or opening a pull request. Requires ALLOW_WRITES=true.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "branch_name", "type": "string", "required": true, "description": "Name of the new branch." },
@@ -449,7 +449,7 @@
       "category": "write",
       "requiresWrites": true,
       "summary": "Open a pull request.",
-      "description": "Create a pull request in a repository. Requires ALLOW_WRITES=true. All write operations are audit-logged when a database is connected.",
+      "description": "Open a pull request between two branches. Use after pushing commits to a branch created with create_branch. Requires ALLOW_WRITES=true. All write operations are audit-logged when a database is connected.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "title", "type": "string", "required": true, "description": "Pull request title." },
@@ -472,7 +472,7 @@
       "category": "write",
       "requiresWrites": true,
       "summary": "Ask specific people to review a pull request.",
-      "description": "Add reviewers to an open pull request. Requires ALLOW_WRITES=true.",
+      "description": "Add reviewer(s) to an open pull request. Use after create_pull_request when the PR is ready for human review. Requires ALLOW_WRITES=true.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." },
@@ -493,7 +493,7 @@
       "category": "write",
       "requiresWrites": true,
       "summary": "Merge a pull request.",
-      "description": "Merge a pull request. Defaults to squash merge. Requires ALLOW_WRITES=true.",
+      "description": "Merge a pull request. Only call when the PR is approved and CI checks have passed. Defaults to squash merge. Requires ALLOW_WRITES=true.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." },

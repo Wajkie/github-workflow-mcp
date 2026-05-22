@@ -31,7 +31,7 @@ export function registerLintingTools(
     "lint_code",
     {
       description:
-        "Lint a string of code inline. The filename is used to infer the language and resolve linter config (eslint.config.js, tsconfig.json, etc.). Returns violations with severity, rule id, line, and suggested fix.",
+        "Lint a string of code inline. Filename is used to infer the language and resolve config (eslint.config.js, tsconfig.json). Returns violations with severity, rule id, line, and suggested fix. Use before committing or when reviewing a code snippet.",
       inputSchema: {
         content: z.string().describe("Source code to lint"),
         filename: z
@@ -55,7 +55,7 @@ export function registerLintingTools(
     "validate_diff",
     {
       description:
-        "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers.",
+        "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers. Use when you have a diff but not the full file.",
       inputSchema: {
         diff: z.string().describe("Unified diff string (output of git diff or similar)"),
       },
@@ -74,13 +74,14 @@ export function registerLintingTools(
     "validate_pr",
     {
       description:
-        "Fetch a pull request's changed files from GitHub and lint the modified content. Returns violations grouped by filename.",
+        "Fetch a pull request's changed files from GitHub and lint the modified content. Returns violations grouped by filename. Use to check a PR for lint errors before reviewing or merging.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         pr_number: z.number().describe("Pull request number"),
       },
     },
     async ({ repo, pr_number: prNumber }) => {
+      if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
         const files = await getChangedFiles(octokit, org, repo, prNumber);
         const violations = await validatePrFiles(files, lintCwd);
@@ -95,7 +96,7 @@ export function registerLintingTools(
     "suggest_fixes",
     {
       description:
-        "Convert lint violations into structured edit suggestions. Returns only violations that have a suggested fix. Never writes to disk.",
+        "Convert lint violations into structured edit suggestions. Returns only violations that have a fixable suggestion. Never writes to disk — use apply_safe_fixes to commit changes.",
       inputSchema: {
         violations: z
           .array(
@@ -126,7 +127,7 @@ export function registerLintingTools(
     "apply_safe_fixes",
     {
       description:
-        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and write the result to a new branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true.",
+        "Apply ESLint autofixable rules (formatting, import ordering, whitespace) and commit the result to a new branch. Returns a unified diff of the changes. Never modifies logic, types, or renames. Requires ALLOW_WRITES=true — use suggest_fixes first if unsure what will change.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         path: z.string().describe("File path within the repository (e.g. 'src/utils.ts')"),

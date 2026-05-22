@@ -19,7 +19,7 @@ export function registerWorkTrackingTools(
     "get_active_work",
     {
       description:
-        "Return open pull requests and issues assigned to the authenticated user across allowed repositories.",
+        "Return open pull requests and issues currently assigned to the authenticated user across all allowed repositories. Use this to get an overview of current workload or to find what to work on next.",
       inputSchema: {},
     },
     async () => {
@@ -38,7 +38,7 @@ export function registerWorkTrackingTools(
     "get_issue",
     {
       description:
-        "Get title, body, labels, assignees, and state for a single issue. Does not include comment history.",
+        "Get title, body, labels, assignees, and state for a single issue. Does not include comment history. Use when you have an issue number and need its full description.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         issue_number: z.number().describe("Issue number"),
@@ -64,7 +64,7 @@ export function registerWorkTrackingTools(
     "search_issues",
     {
       description:
-        "Search issues in a repository using GitHub query syntax. Returns up to 20 results per page.",
+        "Search issues in a repository using GitHub query syntax (keywords and label/state filters). Do not include repo: or org: qualifiers — they are added automatically. Returns up to 20 results per page.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         query: z

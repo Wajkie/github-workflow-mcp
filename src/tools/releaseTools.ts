@@ -14,7 +14,8 @@ export function registerReleaseTools(
   server.registerTool(
     "get_release_status",
     {
-      description: "Get the latest release for a repository — tag, publish date, draft status, and release notes summary",
+      description:
+        "Get the latest release for a repository — tag name, publish date, draft status, and a summary of the release notes. Use to check what version is currently live.",
       inputSchema: { repo: z.string().describe("Repository name (without owner prefix)") },
     },
     async ({ repo }) => {
@@ -31,7 +32,8 @@ export function registerReleaseTools(
   server.registerTool(
     "get_recent_deployments",
     {
-      description: "Get the last 10 GitHub Actions workflow runs for a repository — name, status, conclusion, and trigger",
+      description:
+        "Get the last 10 GitHub Actions workflow runs for a repository — name, status, conclusion, and trigger. Use to check CI health or confirm a deployment completed.",
       inputSchema: { repo: z.string().describe("Repository name (without owner prefix)") },
     },
     async ({ repo }) => {

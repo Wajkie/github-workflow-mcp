@@ -19,7 +19,7 @@ export function registerPullRequestTools(
     "get_pr",
     {
       description:
-        "Get title, body, state, head/base branch, author, reviewers, labels, and merge status for a pull request. Does not include commit history or file contents.",
+        "Get title, body, state, head/base branch, author, reviewers, labels, and merge status for a pull request. Does not include commit history or file contents — use get_changed_files for the diff.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         pr_number: z.number().describe("Pull request number"),
@@ -45,7 +45,7 @@ export function registerPullRequestTools(
     "get_changed_files",
     {
       description:
-        "List files changed in a pull request with their status (added/modified/deleted) and patch hunks. Does not return full file contents.",
+        "List files changed in a pull request with their status (added/modified/deleted) and patch hunks. Use to inspect what a PR touches without reading full file contents — pair with validate_pr to also get lint results.",
       inputSchema: {
         repo: z.string().describe("Repository name (without owner prefix)"),
         pr_number: z.number().describe("Pull request number"),

@@ -8,7 +8,7 @@ export function registerKnowledgeTools(server: McpServer, searcher: KnowledgeSea
     "search_knowledge",
     {
       description:
-        "Search the engineering knowledge base — returns ranked excerpts with source file and section heading",
+        "Search the engineering knowledge base for process docs, architecture notes, and coding guidelines. Use this before asking about team conventions, on-call runbooks, or project standards — returns ranked excerpts with source file and section heading.",
       inputSchema: { query: z.string().describe("Search terms") },
     },
     async ({ query }) => {
