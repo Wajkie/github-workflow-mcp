@@ -15,6 +15,7 @@ import { registerReleaseTools } from "./tools/releaseTools.js";
 import { registerKnowledgeResources } from "./resources/knowledgeResources.js";
 import { registerKnowledgeTools } from "./tools/knowledgeTools.js";
 import { createKnowledgeSearcher } from "./knowledge/search.js";
+import { createObservabilityMiddleware } from "./observability.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
 
@@ -48,8 +49,9 @@ async function registerAllTools(
   registerKnowledgeTools(s, knowledgeSearcher);
 }
 
-async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher, cache: CacheClient): Promise<McpServer> {
+async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher, cache: CacheClient, obs: ReturnType<typeof createObservabilityMiddleware>): Promise<McpServer> {
   const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
+  obs.instrument(s);
   await registerAllTools(s, auditLog, actor, knowledgeSearcher, cache);
   return s;
 }
@@ -67,6 +69,8 @@ async function main() {
     } catch { /* keep "unknown" if token cannot be resolved */ }
   }
 
+  const obs = createObservabilityMiddleware(config.metricsInterval);
+  obs.instrument(server);
   registerAllTools(server, auditLog, actor, knowledgeSearcher, cache);
 
   const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
@@ -81,7 +85,7 @@ async function main() {
   });
 
   if (config.port !== undefined) {
-    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache), getHealthStatus);
+    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs), getHealthStatus);
   }
 
   const stdioTransport = new StdioServerTransport();

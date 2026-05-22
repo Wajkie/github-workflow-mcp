@@ -25,4 +25,5 @@ export const config = {
     issues: parseInt(process.env["CACHE_TTL_ISSUES"] ?? "120", 10),
     files: parseInt(process.env["CACHE_TTL_FILES"] ?? "600", 10),
   },
+  metricsInterval: parseInt(process.env["METRICS_INTERVAL"] ?? "100", 10),
 } as const;
