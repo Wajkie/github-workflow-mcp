@@ -1,0 +1,969 @@
+{
+  "meta": {
+    "title": "GitHub Workflow MCP",
+    "description": "A Model Context Protocol server that gives AI agents structured, scoped access to your GitHub engineering workflow.",
+    "version": "0.1.0",
+    "repo": "https://github.com/Wajkie/github-workflow-mcp"
+  },
+
+  "tools": [
+    {
+      "id": "list_repositories",
+      "name": "list_repositories",
+      "category": "repositories",
+      "requiresWrites": false,
+      "summary": "Show all repositories the agent has access to in your organisation.",
+      "description": "List all repositories in the configured GitHub organisation. Returns name, description, default branch, and visibility for each repo. Results are cached.",
+      "inputs": [],
+      "returns": {
+        "description": "Array of repository summaries.",
+        "shape": {
+          "repos": [
+            {
+              "name": "string",
+              "description": "string | null",
+              "default_branch": "string",
+              "visibility": "string"
+            }
+          ]
+        }
+      },
+      "example": {
+        "input": {},
+        "output": {
+          "repos": [
+            { "name": "api", "description": "Core API service", "default_branch": "main", "visibility": "private" }
+          ]
+        }
+      }
+    },
+    {
+      "id": "get_repository",
+      "name": "get_repository",
+      "category": "repositories",
+      "requiresWrites": false,
+      "summary": "Get detailed information about a specific repository.",
+      "description": "Fetch metadata for a single repository — language, topics, open issue count, size, and visibility.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." }
+      ],
+      "returns": {
+        "description": "Repository metadata.",
+        "shape": {
+          "name": "string",
+          "description": "string | null",
+          "default_branch": "string",
+          "visibility": "string",
+          "language": "string | null",
+          "topics": "string[]",
+          "size": "number",
+          "open_issues_count": "number"
+        }
+      },
+      "example": {
+        "input": { "repo": "api" },
+        "output": {
+          "name": "api",
+          "description": "Core API service",
+          "default_branch": "main",
+          "visibility": "private",
+          "language": "TypeScript",
+          "topics": ["node", "rest-api"],
+          "size": 4096,
+          "open_issues_count": 12
+        }
+      }
+    },
+    {
+      "id": "get_file",
+      "name": "get_file",
+      "category": "repositories",
+      "requiresWrites": false,
+      "summary": "Read the contents of a file from a repository.",
+      "description": "Fetch a file's content from a repository at a given ref. Paths with wildcards, double-dots, or absolute roots are rejected. Content is base64-decoded automatically.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "path", "type": "string", "required": true, "description": "File path within the repository (e.g. src/index.ts)." },
+        { "name": "ref", "type": "string", "required": false, "description": "Git ref (branch, tag, or SHA). Defaults to the default branch." }
+      ],
+      "returns": {
+        "description": "File content and metadata.",
+        "shape": {
+          "path": "string",
+          "sha": "string",
+          "size": "number",
+          "content": "string"
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "path": "src/index.ts", "ref": "main" },
+        "output": { "path": "src/index.ts", "sha": "abc123", "size": 512, "content": "import express..." }
+      }
+    },
+    {
+      "id": "search_code",
+      "name": "search_code",
+      "category": "repositories",
+      "requiresWrites": false,
+      "summary": "Search for code patterns or symbols across a repository.",
+      "description": "Search for code within a single repository using GitHub code search. Returns file path, URL, and a matched snippet. Query must not contain GitHub qualifier syntax (e.g. repo:, org:).",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "query", "type": "string", "required": true, "description": "Search terms. Must not contain GitHub qualifier syntax." }
+      ],
+      "returns": {
+        "description": "Array of matched files.",
+        "shape": [{ "path": "string", "url": "string", "snippet": "string | null" }]
+      },
+      "example": {
+        "input": { "repo": "api", "query": "createUser" },
+        "output": [{ "path": "src/users/controller.ts", "url": "https://github.com/...", "snippet": "export async function createUser(..." }]
+      }
+    },
+    {
+      "id": "get_active_work",
+      "name": "get_active_work",
+      "category": "work-tracking",
+      "requiresWrites": false,
+      "summary": "See all open pull requests and issues currently assigned to the agent.",
+      "description": "Return open pull requests and issues assigned to the authenticated GitHub user across all allowed repositories. Useful as a starting point for understanding what work is in progress.",
+      "inputs": [],
+      "returns": {
+        "description": "Separated lists of pull requests and issues.",
+        "shape": {
+          "pull_requests": [{ "repo": "string", "number": "number", "title": "string", "url": "string" }],
+          "issues": [{ "repo": "string", "number": "number", "title": "string", "url": "string" }]
+        }
+      },
+      "example": {
+        "input": {},
+        "output": {
+          "pull_requests": [{ "repo": "api", "number": 42, "title": "Add rate limiting", "url": "https://github.com/..." }],
+          "issues": [{ "repo": "frontend", "number": 17, "title": "Fix login redirect", "url": "https://github.com/..." }]
+        }
+      }
+    },
+    {
+      "id": "get_issue",
+      "name": "get_issue",
+      "category": "work-tracking",
+      "requiresWrites": false,
+      "summary": "Get the full details of a single issue.",
+      "description": "Fetch title, body, labels, assignees, and state for a single issue. Does not include comment history.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "issue_number", "type": "number", "required": true, "description": "Issue number." }
+      ],
+      "returns": {
+        "description": "Issue details.",
+        "shape": {
+          "number": "number",
+          "title": "string",
+          "body": "string | null",
+          "state": "string",
+          "labels": "string[]",
+          "assignees": "string[]",
+          "url": "string"
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "issue_number": 17 },
+        "output": { "number": 17, "title": "Fix login redirect", "body": "After login the user is...", "state": "open", "labels": ["bug"], "assignees": ["alice"], "url": "https://github.com/..." }
+      }
+    },
+    {
+      "id": "search_issues",
+      "name": "search_issues",
+      "category": "work-tracking",
+      "requiresWrites": false,
+      "summary": "Search for issues in a repository by keyword.",
+      "description": "Search issues using GitHub query syntax. Returns up to 20 results per page. Query must not contain GitHub qualifier syntax.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "query", "type": "string", "required": true, "description": "Search terms." },
+        { "name": "page", "type": "number", "required": false, "description": "Page number (default: 1)." }
+      ],
+      "returns": {
+        "description": "Paginated issue results.",
+        "shape": {
+          "total_count": "number",
+          "page": "number",
+          "items": [{ "number": "number", "title": "string", "state": "string", "labels": "string[]", "url": "string" }]
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "query": "authentication" },
+        "output": { "total_count": 3, "page": 1, "items": [{ "number": 5, "title": "JWT expiry not handled", "state": "open", "labels": ["bug"], "url": "https://github.com/..." }] }
+      }
+    },
+    {
+      "id": "get_pr",
+      "name": "get_pr",
+      "category": "pull-requests",
+      "requiresWrites": false,
+      "summary": "Get the details of a pull request.",
+      "description": "Fetch title, body, state, head/base branch, author, requested reviewers, labels, and merge status for a pull request. Does not include commit history or file contents.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." }
+      ],
+      "returns": {
+        "description": "Pull request details.",
+        "shape": {
+          "number": "number",
+          "title": "string",
+          "body": "string | null",
+          "state": "string",
+          "draft": "boolean",
+          "head": "string",
+          "base": "string",
+          "author": "string | null",
+          "reviewers": "string[]",
+          "labels": "string[]",
+          "merged": "boolean",
+          "mergeable": "boolean | null",
+          "url": "string"
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "pr_number": 42 },
+        "output": { "number": 42, "title": "Add rate limiting", "state": "open", "draft": false, "head": "feature/rate-limit", "base": "main", "author": "alice", "reviewers": ["bob"], "labels": [], "merged": false, "mergeable": true, "url": "https://github.com/..." }
+      }
+    },
+    {
+      "id": "get_changed_files",
+      "name": "get_changed_files",
+      "category": "pull-requests",
+      "requiresWrites": false,
+      "summary": "List which files were changed in a pull request.",
+      "description": "Returns files changed in a PR with their status (added/modified/deleted), line counts, and patch hunks. Does not return full file contents.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." }
+      ],
+      "returns": {
+        "description": "Array of changed files.",
+        "shape": [{ "filename": "string", "status": "string", "additions": "number", "deletions": "number", "patch": "string | null" }]
+      },
+      "example": {
+        "input": { "repo": "api", "pr_number": 42 },
+        "output": [{ "filename": "src/middleware/rateLimit.ts", "status": "added", "additions": 45, "deletions": 0, "patch": "@@ -0,0 +1,45 @@..." }]
+      }
+    },
+    {
+      "id": "get_release_status",
+      "name": "get_release_status",
+      "category": "releases",
+      "requiresWrites": false,
+      "summary": "Check the latest release of a repository.",
+      "description": "Fetch the latest GitHub release — tag name, publish date, draft/prerelease status, and a summary of the release notes (capped at 500 characters).",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." }
+      ],
+      "returns": {
+        "description": "Latest release details.",
+        "shape": {
+          "tag": "string",
+          "name": "string | null",
+          "published_at": "string | null",
+          "draft": "boolean",
+          "prerelease": "boolean",
+          "body_summary": "string | null",
+          "url": "string"
+        }
+      },
+      "example": {
+        "input": { "repo": "api" },
+        "output": { "tag": "v2.4.1", "name": "Release 2.4.1", "published_at": "2026-05-01T12:00:00Z", "draft": false, "prerelease": false, "body_summary": "Bug fixes and performance improvements.", "url": "https://github.com/..." }
+      }
+    },
+    {
+      "id": "get_recent_deployments",
+      "name": "get_recent_deployments",
+      "category": "releases",
+      "requiresWrites": false,
+      "summary": "See the last 10 CI/CD workflow runs for a repository.",
+      "description": "Fetch the 10 most recent GitHub Actions workflow runs — name, status, conclusion, trigger event, branch, and timestamps.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." }
+      ],
+      "returns": {
+        "description": "Array of workflow runs.",
+        "shape": [{ "id": "number", "name": "string | null", "status": "string", "conclusion": "string | null", "event": "string", "branch": "string | null", "created_at": "string", "updated_at": "string", "url": "string" }]
+      },
+      "example": {
+        "input": { "repo": "api" },
+        "output": [{ "id": 9876, "name": "CI", "status": "completed", "conclusion": "success", "event": "push", "branch": "main", "created_at": "2026-05-22T10:00:00Z", "updated_at": "2026-05-22T10:05:00Z", "url": "https://github.com/..." }]
+      }
+    },
+    {
+      "id": "lint_code",
+      "name": "lint_code",
+      "category": "linting",
+      "requiresWrites": false,
+      "summary": "Check a piece of code for errors and style issues.",
+      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config (eslint.config.js, tsconfig.json). Runs ESLint and the TypeScript compiler. Returns violations with severity, rule ID, line/column, explanation, and suggested fix.",
+      "inputs": [
+        { "name": "content", "type": "string", "required": true, "description": "Source code to lint." },
+        { "name": "filename", "type": "string", "required": true, "description": "Filename (e.g. src/utils.ts). Used to select the linter and resolve config — the file does not need to exist on disk." }
+      ],
+      "returns": {
+        "description": "Array of lint violations.",
+        "shape": [{ "linter": "string", "severity": "error | warning | info", "ruleId": "string | null", "line": "number", "column": "number", "explanation": "string", "suggestedFix": "string | null" }]
+      },
+      "example": {
+        "input": { "content": "const MyVar = 1;\nexport {};\n", "filename": "src/example.ts" },
+        "output": [{ "linter": "eslint", "severity": "warning", "ruleId": "@typescript-eslint/naming-convention", "line": 1, "column": 7, "explanation": "Variable name must be camelCase", "suggestedFix": null }]
+      }
+    },
+    {
+      "id": "validate_diff",
+      "name": "validate_diff",
+      "category": "linting",
+      "requiresWrites": false,
+      "summary": "Lint the changed lines in a git diff.",
+      "description": "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers.",
+      "inputs": [
+        { "name": "diff", "type": "string", "required": true, "description": "Unified diff string (output of git diff or similar)." }
+      ],
+      "returns": {
+        "description": "Array of violations with filename attached.",
+        "shape": [{ "filename": "string", "linter": "string", "severity": "string", "ruleId": "string | null", "line": "number", "column": "number", "explanation": "string", "suggestedFix": "string | null" }]
+      },
+      "example": {
+        "input": { "diff": "+++ b/src/foo.ts\n@@ -1,2 +1,3 @@\n const x = 1;\n+const MyBadName = 2;\n export {};" },
+        "output": [{ "filename": "src/foo.ts", "linter": "eslint", "severity": "warning", "ruleId": "@typescript-eslint/naming-convention", "line": 2, "column": 7, "explanation": "Variable name must be camelCase", "suggestedFix": null }]
+      }
+    },
+    {
+      "id": "validate_pr",
+      "name": "validate_pr",
+      "category": "linting",
+      "requiresWrites": false,
+      "summary": "Lint all changed files in a pull request.",
+      "description": "Fetch a pull request's changed files from GitHub and lint the modified content. Returns violations grouped by filename. Useful for automated PR review.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." }
+      ],
+      "returns": {
+        "description": "Array of violations across all changed files.",
+        "shape": [{ "filename": "string", "linter": "string", "severity": "string", "ruleId": "string | null", "line": "number", "column": "number", "explanation": "string", "suggestedFix": "string | null" }]
+      },
+      "example": {
+        "input": { "repo": "api", "pr_number": 42 },
+        "output": [{ "filename": "src/middleware/rateLimit.ts", "linter": "typescript", "severity": "error", "ruleId": "TS2345", "line": 12, "column": 5, "explanation": "Argument of type 'string' is not assignable to parameter of type 'number'", "suggestedFix": null }]
+      }
+    },
+    {
+      "id": "suggest_fixes",
+      "name": "suggest_fixes",
+      "category": "linting",
+      "requiresWrites": false,
+      "summary": "Turn lint violations into actionable edit suggestions.",
+      "description": "Convert lint violations into structured edit suggestions. Returns only violations that have a suggested fix. Never writes to disk — the agent decides what to do with the suggestions.",
+      "inputs": [
+        { "name": "violations", "type": "LintViolation[]", "required": true, "description": "Violations from lint_code, validate_diff, or validate_pr." }
+      ],
+      "returns": {
+        "description": "Array of structured edits.",
+        "shape": [{ "line": "number", "column": "number", "ruleId": "string | null", "description": "string", "edit": "string | null" }]
+      },
+      "example": {
+        "input": { "violations": [{ "linter": "eslint", "severity": "warning", "ruleId": "prefer-const", "line": 3, "column": 1, "explanation": "Use const instead of let", "suggestedFix": "Replace let with const" }] },
+        "output": [{ "line": 3, "column": 1, "ruleId": "prefer-const", "description": "Use const instead of let", "edit": "Replace let with const" }]
+      }
+    },
+    {
+      "id": "apply_safe_fixes",
+      "name": "apply_safe_fixes",
+      "category": "linting",
+      "requiresWrites": true,
+      "summary": "Automatically fix safe lint issues and commit them to a new branch.",
+      "description": "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and write the result to a new branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "path", "type": "string", "required": true, "description": "File path within the repository." },
+        { "name": "content", "type": "string", "required": true, "description": "Current file content to fix." },
+        { "name": "base_branch", "type": "string", "required": true, "description": "Branch to base the fix branch on." },
+        { "name": "branch_name", "type": "string", "required": true, "description": "Name for the new branch that will contain the fixes." }
+      ],
+      "returns": {
+        "description": "Branch name and unified diff of applied changes, or a message if no fixes were needed.",
+        "shape": {
+          "branch": "string (if fixes applied)",
+          "diff": "string",
+          "message": "string (if no fixes applied)"
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "path": "src/index.ts", "content": "import b from 'b'\nimport a from 'a'\n", "base_branch": "main", "branch_name": "fix/lint-index" },
+        "output": { "branch": "fix/lint-index", "diff": "--- a/src/index.ts\n+++ b/src/index.ts\n..." }
+      }
+    },
+    {
+      "id": "search_knowledge",
+      "name": "search_knowledge",
+      "category": "knowledge",
+      "requiresWrites": false,
+      "summary": "Search your team's engineering knowledge base.",
+      "description": "Search the engineering knowledge base using trigram similarity. Returns ranked excerpts with source file and section heading. Requires DATABASE_URL to be set.",
+      "inputs": [
+        { "name": "query", "type": "string", "required": true, "description": "Search terms." }
+      ],
+      "returns": {
+        "description": "Ranked search results.",
+        "shape": {
+          "results": [{ "file": "string", "section": "string", "excerpt": "string", "score": "number" }]
+        }
+      },
+      "example": {
+        "input": { "query": "naming conventions variables" },
+        "output": { "results": [{ "file": "conventions", "section": "Naming", "excerpt": "Use camelCase for variables and functions...", "score": 0.87 }] }
+      }
+    },
+    {
+      "id": "create_branch",
+      "name": "create_branch",
+      "category": "write",
+      "requiresWrites": true,
+      "summary": "Create a new branch in a repository.",
+      "description": "Create a new branch from a base ref. Resolves the base SHA automatically. Requires ALLOW_WRITES=true.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "branch_name", "type": "string", "required": true, "description": "Name of the new branch." },
+        { "name": "base", "type": "string", "required": true, "description": "Branch, tag, or SHA to branch from." }
+      ],
+      "returns": {
+        "description": "Created ref and SHA.",
+        "shape": { "ref": "string", "sha": "string" }
+      },
+      "example": {
+        "input": { "repo": "api", "branch_name": "feature/add-cache", "base": "main" },
+        "output": { "ref": "refs/heads/feature/add-cache", "sha": "abc123def456" }
+      }
+    },
+    {
+      "id": "create_pull_request",
+      "name": "create_pull_request",
+      "category": "write",
+      "requiresWrites": true,
+      "summary": "Open a pull request.",
+      "description": "Create a pull request in a repository. Requires ALLOW_WRITES=true. All write operations are audit-logged when a database is connected.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "title", "type": "string", "required": true, "description": "Pull request title." },
+        { "name": "body", "type": "string", "required": true, "description": "Pull request body." },
+        { "name": "head", "type": "string", "required": true, "description": "Branch containing the changes." },
+        { "name": "base", "type": "string", "required": true, "description": "Branch to merge into." }
+      ],
+      "returns": {
+        "description": "Created PR summary.",
+        "shape": { "number": "number", "url": "string", "state": "string", "draft": "boolean" }
+      },
+      "example": {
+        "input": { "repo": "api", "title": "Add caching layer", "body": "Adds Redis caching...", "head": "feature/add-cache", "base": "main" },
+        "output": { "number": 55, "url": "https://github.com/...", "state": "open", "draft": false }
+      }
+    },
+    {
+      "id": "request_review",
+      "name": "request_review",
+      "category": "write",
+      "requiresWrites": true,
+      "summary": "Ask specific people to review a pull request.",
+      "description": "Add reviewers to an open pull request. Requires ALLOW_WRITES=true.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." },
+        { "name": "reviewers", "type": "string[]", "required": true, "description": "GitHub usernames to request review from." }
+      ],
+      "returns": {
+        "description": "Updated reviewer list.",
+        "shape": { "number": "number", "requested_reviewers": "string[]" }
+      },
+      "example": {
+        "input": { "repo": "api", "pr_number": 55, "reviewers": ["alice", "bob"] },
+        "output": { "number": 55, "requested_reviewers": ["alice", "bob"] }
+      }
+    },
+    {
+      "id": "merge_pr",
+      "name": "merge_pr",
+      "category": "write",
+      "requiresWrites": true,
+      "summary": "Merge a pull request.",
+      "description": "Merge a pull request. Defaults to squash merge. Requires ALLOW_WRITES=true.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
+        { "name": "pr_number", "type": "number", "required": true, "description": "Pull request number." },
+        { "name": "method", "type": "squash | merge | rebase", "required": false, "description": "Merge method. Defaults to squash." }
+      ],
+      "returns": {
+        "description": "Merge result.",
+        "shape": { "merged": "boolean", "sha": "string", "message": "string" }
+      },
+      "example": {
+        "input": { "repo": "api", "pr_number": 55, "method": "squash" },
+        "output": { "merged": true, "sha": "def789", "message": "Add caching layer (#55)" }
+      }
+    }
+  ],
+
+  "audiences": {
+    "developer": {
+      "nav": ["overview", "quickstart", "tools", "configuration", "architecture", "deployment"],
+      "sections": [
+        {
+          "id": "overview",
+          "title": "Overview",
+          "pages": [
+            {
+              "id": "introduction",
+              "title": "What is GitHub Workflow MCP?",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "GitHub Workflow MCP is a Model Context Protocol server that exposes your GitHub engineering workflow to AI agents. It gives agents structured, scoped access to repositories, pull requests, issues, CI runs, linting tooling, and an engineering knowledge base — enough to understand and participate in the software delivery lifecycle."
+                },
+                {
+                  "type": "prose",
+                  "body": "The server is designed as a company scaffold: the tool definitions, transport layer, and knowledge structure are all in place, but the knowledge content is intentionally left empty so your team can fill it in without touching any code."
+                },
+                {
+                  "type": "callout",
+                  "variant": "info",
+                  "body": "All write operations are disabled by default. Set ALLOW_WRITES=true to enable them. Every write is audit-logged when a database is connected."
+                }
+              ]
+            },
+            {
+              "id": "principles",
+              "title": "Design principles",
+              "content": [
+                {
+                  "type": "list",
+                  "items": [
+                    "Expose workflows, not raw systems — tools map to tasks, not API endpoints",
+                    "Prefer retrieval over preloading — agents fetch what they need, when they need it",
+                    "Tools are small, composable, and deterministic",
+                    "Least-privilege access — reads are always safe, writes require explicit opt-in",
+                    "Multi-repository from day one — all tools accept a repo parameter and respect ALLOWED_REPOS"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "quickstart",
+          "title": "Quickstart",
+          "pages": [
+            {
+              "id": "install",
+              "title": "Install and run",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "Prerequisites: Node.js ≥ 20, a GitHub fine-grained PAT with repo read scope."
+                },
+                {
+                  "type": "code",
+                  "lang": "bash",
+                  "body": "git clone https://github.com/Wajkie/github-workflow-mcp\ncd github-workflow-mcp\nnpm install\ncp .env.example .env\n# Edit .env — set GITHUB_TOKEN and GITHUB_ORG at minimum\nnpm run dev"
+                },
+                {
+                  "type": "prose",
+                  "body": "The server starts on stdio by default. Set PORT to also enable the HTTP transport."
+                }
+              ]
+            },
+            {
+              "id": "claude-desktop",
+              "title": "Connect to Claude Desktop",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "Build the project first, then add the server to your Claude Desktop config."
+                },
+                {
+                  "type": "code",
+                  "lang": "bash",
+                  "body": "npm run build"
+                },
+                {
+                  "type": "code",
+                  "lang": "json",
+                  "label": "claude_desktop_config.json",
+                  "body": "{\n  \"mcpServers\": {\n    \"github-workflow\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/dist/server.js\"],\n      \"env\": {\n        \"GITHUB_TOKEN\": \"ghp_…\",\n        \"GITHUB_ORG\": \"your-org\"\n      }\n    }\n  }\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "tools",
+          "title": "Tools",
+          "groups": [
+            {
+              "id": "repositories",
+              "title": "Repository tools",
+              "toolRefs": ["list_repositories", "get_repository", "get_file", "search_code"]
+            },
+            {
+              "id": "work-tracking",
+              "title": "Work tracking tools",
+              "toolRefs": ["get_active_work", "get_issue", "search_issues"]
+            },
+            {
+              "id": "pull-requests",
+              "title": "Pull request tools",
+              "toolRefs": ["get_pr", "get_changed_files"]
+            },
+            {
+              "id": "releases",
+              "title": "Release tools",
+              "toolRefs": ["get_release_status", "get_recent_deployments"]
+            },
+            {
+              "id": "linting",
+              "title": "Linting tools",
+              "toolRefs": ["lint_code", "validate_diff", "validate_pr", "suggest_fixes", "apply_safe_fixes"]
+            },
+            {
+              "id": "knowledge",
+              "title": "Knowledge tools",
+              "toolRefs": ["search_knowledge"]
+            },
+            {
+              "id": "write",
+              "title": "Write tools",
+              "requiresWrites": true,
+              "toolRefs": ["create_branch", "create_pull_request", "request_review", "merge_pr"]
+            }
+          ]
+        },
+        {
+          "id": "configuration",
+          "title": "Configuration",
+          "pages": [
+            {
+              "id": "env-vars",
+              "title": "Environment variables",
+              "content": [
+                {
+                  "type": "env-table",
+                  "vars": [
+                    { "name": "GITHUB_TOKEN", "required": true, "default": null, "description": "Fine-grained PAT. Needs repo read scope; add write scope if ALLOW_WRITES=true.", "example": "ghp_..." },
+                    { "name": "GITHUB_ORG", "required": true, "default": null, "description": "GitHub organisation slug.", "example": "acme-corp" },
+                    { "name": "ALLOWED_REPOS", "required": false, "default": "*", "description": "Comma-separated list of repository names the agent may access. Use * for all repos.", "example": "api,frontend,infra" },
+                    { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes).", "example": "true" },
+                    { "name": "LOG_LEVEL", "required": false, "default": "info", "description": "Logging verbosity.", "example": "debug" },
+                    { "name": "PORT", "required": false, "default": null, "description": "Enables the HTTP transport when set. Both stdio and HTTP run simultaneously when PORT is present.", "example": "3000" },
+                    { "name": "MCP_SECRET", "required": false, "default": null, "description": "If set, all /mcp requests must include an x-mcp-secret header matching this value.", "example": "a-long-random-secret" },
+                    { "name": "MAX_BODY_BYTES", "required": false, "default": "1048576", "description": "Maximum HTTP request body size in bytes.", "example": "2097152" },
+                    { "name": "MAX_SESSIONS", "required": false, "default": "100", "description": "Maximum number of concurrent HTTP MCP sessions.", "example": "50" },
+                    { "name": "DATABASE_URL", "required": false, "default": null, "description": "Postgres connection string. Enables audit logging and knowledge search.", "example": "postgresql://user:pass@host:5432/db" },
+                    { "name": "REDIS_URL", "required": false, "default": null, "description": "Redis connection string. Enables response caching.", "example": "redis://localhost:6379" },
+                    { "name": "CACHE_TTL_REPOS", "required": false, "default": "300", "description": "Repository list cache TTL in seconds.", "example": "600" },
+                    { "name": "CACHE_TTL_PRS", "required": false, "default": "120", "description": "Pull request cache TTL in seconds.", "example": "60" },
+                    { "name": "CACHE_TTL_ISSUES", "required": false, "default": "120", "description": "Issue cache TTL in seconds.", "example": "60" },
+                    { "name": "CACHE_TTL_FILES", "required": false, "default": "600", "description": "File content cache TTL in seconds.", "example": "300" },
+                    { "name": "METRICS_INTERVAL", "required": false, "default": "100", "description": "Emit a metrics summary log entry every N tool calls.", "example": "50" }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "architecture",
+          "title": "Architecture",
+          "pages": [
+            {
+              "id": "layers",
+              "title": "Layers",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "The server is split into three layers: transport, tool registration, and domain logic. Transport (stdio and HTTP) is wired in server.ts. Tool registration files (*Tools.ts) bind Zod-validated MCP schemas to domain functions. Domain files contain pure GitHub API calls with no MCP dependency."
+                },
+                {
+                  "type": "prose",
+                  "body": "The observability middleware monkey-patches McpServer.registerTool at startup, wrapping every handler with latency tracking and structured logging — no changes to individual tool handlers are needed."
+                }
+              ]
+            },
+            {
+              "id": "transports",
+              "title": "Transports",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "Two transports run simultaneously when PORT is set. stdio uses a single shared McpServer instance. HTTP creates a separate McpServer per session (via StreamableHTTPServerTransport) so session state is isolated. Both share the same Octokit instance, audit logger, cache, and observability middleware."
+                }
+              ]
+            },
+            {
+              "id": "knowledge-layer",
+              "title": "Knowledge layer",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "The knowledge/ directory contains Markdown files registered as MCP resources at engineering:///<slug>. On startup, the server reads the directory and registers one resource per file — no config required to add new files. When DATABASE_URL is set, files are also chunked by heading and indexed in Postgres using pg_trgm for full-text search via the search_knowledge tool."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "deployment",
+          "title": "Deployment",
+          "pages": [
+            {
+              "id": "railway",
+              "title": "Railway (recommended)",
+              "content": [
+                {
+                  "type": "code",
+                  "lang": "bash",
+                  "body": "railway login\nrailway init\nrailway up"
+                },
+                {
+                  "type": "prose",
+                  "body": "Add a Postgres plugin in the Railway dashboard to enable audit logging and knowledge search. DATABASE_URL is injected automatically. Set GITHUB_TOKEN, GITHUB_ORG, and MCP_SECRET in Settings → Variables."
+                }
+              ]
+            },
+            {
+              "id": "docker",
+              "title": "Docker Compose",
+              "content": [
+                {
+                  "type": "code",
+                  "lang": "bash",
+                  "body": "cp .env.example .env\n# Fill in GITHUB_TOKEN and GITHUB_ORG\ndocker compose up --build"
+                },
+                {
+                  "type": "prose",
+                  "body": "Starts the MCP server on port 3000 and a Postgres 16 instance. The MCP service waits for Postgres to be healthy before starting."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+
+    "business": {
+      "nav": ["what-is-this", "what-can-it-do", "use-cases", "access-and-safety"],
+      "sections": [
+        {
+          "id": "what-is-this",
+          "title": "What is this?",
+          "pages": [
+            {
+              "id": "intro",
+              "title": "GitHub Workflow MCP — plain English",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "This is a connector that lets AI assistants (like Claude) understand and interact with your team's software development work on GitHub. Without it, an AI assistant has no idea what your team is working on, what code looks like, or what your processes are. With it, you can ask an AI to help review a pull request, explain what an issue is about, or check whether a piece of code follows your team's standards."
+                },
+                {
+                  "type": "callout",
+                  "variant": "info",
+                  "body": "Think of it as giving your AI assistant a read-only window into your engineering workflow — with the option to let it take actions too, when your team is ready."
+                },
+                {
+                  "type": "prose",
+                  "body": "The AI can only see repositories and take actions that your team explicitly allows. Everything is configurable, and write actions (like creating a pull request) are turned off by default."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "what-can-it-do",
+          "title": "What can it do?",
+          "pages": [
+            {
+              "id": "read-capabilities",
+              "title": "Reading and understanding your work",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "By default the assistant can read but not change anything. Here is what it can look at:"
+                },
+                {
+                  "type": "capability-list",
+                  "items": [
+                    {
+                      "label": "Repositories",
+                      "summary": "See all the code projects your team has on GitHub — names, descriptions, and languages used."
+                    },
+                    {
+                      "label": "Files",
+                      "summary": "Read the contents of any file in any allowed repository, at any point in its history."
+                    },
+                    {
+                      "label": "Pull requests",
+                      "summary": "See who opened a PR, what it changes, who has been asked to review it, and whether it is ready to merge."
+                    },
+                    {
+                      "label": "Issues",
+                      "summary": "Read the description and status of any issue, or search across issues by keyword."
+                    },
+                    {
+                      "label": "Releases and deployments",
+                      "summary": "Check what version of a project was last released and whether recent CI builds passed or failed."
+                    },
+                    {
+                      "label": "Your in-progress work",
+                      "summary": "Ask the assistant to summarise everything currently assigned to you across all repositories."
+                    },
+                    {
+                      "label": "Team knowledge base",
+                      "summary": "Search your team's own engineering guidelines, conventions, and architecture notes."
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "write-capabilities",
+              "title": "Taking actions (optional, off by default)",
+              "content": [
+                {
+                  "type": "callout",
+                  "variant": "warning",
+                  "body": "Write actions are turned off by default. A team administrator must explicitly enable them by setting ALLOW_WRITES=true. Every action is logged."
+                },
+                {
+                  "type": "capability-list",
+                  "items": [
+                    {
+                      "label": "Create a branch",
+                      "summary": "Start a new line of work on a repository without affecting the main codebase."
+                    },
+                    {
+                      "label": "Open a pull request",
+                      "summary": "Propose a change for the team to review, with a title, description, and source branch."
+                    },
+                    {
+                      "label": "Request a review",
+                      "summary": "Notify specific team members that their review is needed on a pull request."
+                    },
+                    {
+                      "label": "Merge a pull request",
+                      "summary": "Combine an approved change into the main branch."
+                    },
+                    {
+                      "label": "Apply safe code fixes",
+                      "summary": "Automatically correct formatting and style issues in a file and commit them to a new branch for review."
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "use-cases",
+          "title": "Example use cases",
+          "pages": [
+            {
+              "id": "pr-review-assist",
+              "title": "Helping with pull request reviews",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "A team member opens a pull request. Before a human reviewer looks at it, an AI assistant can automatically check the changed code against the team's style rules, flag any obvious issues, and summarise what changed in plain language. The reviewer arrives with context already prepared."
+                },
+                {
+                  "type": "steps",
+                  "items": [
+                    "Assistant fetches the changed files from the PR",
+                    "Runs them through the project's linting rules",
+                    "Summarises violations and suggests fixes",
+                    "Posts a summary comment (if write tools are enabled)"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "onboarding",
+              "title": "Getting a new engineer up to speed",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "A new engineer joins the team. Instead of reading through dozens of wiki pages, they can ask the AI assistant questions directly. The assistant searches the knowledge base and reads relevant files on their behalf, answering questions about conventions, architecture decisions, and where to find things."
+                }
+              ]
+            },
+            {
+              "id": "issue-to-pr",
+              "title": "From issue to pull request",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "When write tools are enabled, an AI assistant can take a GitHub issue, understand the requirement, find relevant code in the repository, generate a fix, lint it, and open a pull request for human review — all in one conversation."
+                },
+                {
+                  "type": "steps",
+                  "items": [
+                    "Read the issue to understand what needs to change",
+                    "Search the codebase to find the relevant files",
+                    "Read the team's conventions from the knowledge base",
+                    "Generate the code change",
+                    "Lint it to confirm it meets standards",
+                    "Create a branch and open a pull request for human review"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "release-status",
+              "title": "Checking release and deployment health",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "During an incident or before a release, quickly ask the AI assistant: 'What version of the API is currently live?', 'Did the last CI run pass?', or 'What changed since the last release?' — without leaving the conversation."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "access-and-safety",
+          "title": "Access and safety",
+          "pages": [
+            {
+              "id": "controls",
+              "title": "How access is controlled",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "The assistant only has access to repositories your team explicitly allows. By default it can see all repositories in your GitHub organisation, but this can be restricted to a specific list."
+                },
+                {
+                  "type": "prose",
+                  "body": "Write actions — creating branches, opening pull requests, merging — are turned off by default. They require an administrator to opt in, and every action taken is recorded in an audit log that shows who triggered it, what was done, and when."
+                },
+                {
+                  "type": "callout",
+                  "variant": "success",
+                  "body": "The assistant never has access to your GitHub password or SSH keys — it uses a limited-scope access token that can be revoked at any time."
+                },
+                {
+                  "type": "prose",
+                  "body": "Your GitHub token and any secrets are never returned in tool responses. They stay on the server and are never visible to the AI or in conversation history."
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
