@@ -874,6 +874,29 @@
                   "body": "All user-controlled text returned by the server passes through a shared sanitizer (src/sanitize.ts) before reaching the agent. This covers knowledge base reads and search excerpts, and GitHub API responses — issue bodies, PR bodies, and release notes. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands."
                 }
               ]
+            },
+            {
+              "id": "conventions",
+              "title": "Conventions",
+              "content": [
+                {
+                  "type": "prose",
+                  "body": "Team conventions are handled by two separate layers that serve different purposes and should both be populated."
+                },
+                {
+                  "type": "prose",
+                  "body": "Mechanical rules — semicolons, naming patterns, import order, type safety — belong in eslint.config.js (pointed to by LINT_CWD). These are enforced automatically every time an agent calls lint_code, validate_pr, or apply_safe_fixes. The agent has no choice but to comply."
+                },
+                {
+                  "type": "prose",
+                  "body": "Judgment-call conventions — PR size, commit message format, architecture preferences, on-call runbooks — belong in the knowledge/ directory as Markdown files. An agent retrieves these on demand via search_knowledge or by reading a resource URI directly. They are not enforced automatically; the agent must be instructed to consult the knowledge base before starting work."
+                },
+                {
+                  "type": "callout",
+                  "variant": "info",
+                  "body": "The two layers do not talk to each other. If a convention can be expressed as a lint rule, put it there — it will always be checked. If it requires judgment, put it in knowledge/ and add a system-prompt instruction telling the agent to call search_knowledge at the start of any coding task."
+                }
+              ]
             }
           ]
         },
