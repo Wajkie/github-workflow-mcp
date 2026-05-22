@@ -302,7 +302,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Check a piece of code for errors and style issues.",
-      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config (eslint.config.js, tsconfig.json). Runs ESLint and the TypeScript compiler. Returns violations with severity, rule ID, line/column, explanation, and suggested fix.",
+      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config (eslint.config.js, tsconfig.json). Runs ESLint and the TypeScript compiler. Returns violations with severity, rule ID, line/column, explanation, and suggested fix. Input is capped at 100 KB.",
       "inputs": [
         { "name": "content", "type": "string", "required": true, "description": "Source code to lint." },
         { "name": "filename", "type": "string", "required": true, "description": "Filename (e.g. src/utils.ts). Used to select the linter and resolve config — the file does not need to exist on disk." }
@@ -322,7 +322,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Lint the changed lines in a git diff.",
-      "description": "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers.",
+      "description": "Lint a unified diff string (e.g. from git diff). Each added/changed hunk is linted in context. Returns violations mapped to their new-file line numbers. Input is capped at 100 KB.",
       "inputs": [
         { "name": "diff", "type": "string", "required": true, "description": "Unified diff string (output of git diff or similar)." }
       ],
@@ -428,7 +428,7 @@
       "category": "write",
       "requiresWrites": true,
       "summary": "Create a new branch in a repository.",
-      "description": "Create a new branch from a base ref. Resolves the base SHA automatically. Requires ALLOW_WRITES=true.",
+      "description": "Create a new branch from a base ref. Resolves the base SHA automatically. Branch name is validated against a safe character allowlist before the request is sent. Requires ALLOW_WRITES=true.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "branch_name", "type": "string", "required": true, "description": "Name of the new branch." },
@@ -714,7 +714,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "All content served from the knowledge layer — both full resource reads and search excerpts — passes through a sanitizer (src/knowledge/sanitize.ts) before reaching the agent. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands. This is a defence-in-depth measure against compromised or maliciously edited knowledge files."
+                  "body": "All user-controlled text returned by the server passes through a shared sanitizer (src/sanitize.ts) before reaching the agent. This covers knowledge base reads and search excerpts, and GitHub API responses — issue bodies, PR bodies, and release notes. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands."
                 }
               ]
             }
@@ -965,7 +965,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "The knowledge base — the files that describe your team's conventions and processes — is sanitized before it is read by the AI. If someone were to edit those files to include hidden instructions aimed at manipulating the AI's behaviour, those lines are automatically removed before the content is served."
+                  "body": "Any text that comes from GitHub — issue descriptions, pull request bodies, release notes — as well as the knowledge base files, is automatically scanned before it reaches the AI. If those sources contain hidden instructions designed to manipulate the AI's behaviour, those lines are removed before the content is served."
                 }
               ]
             }

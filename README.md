@@ -150,4 +150,6 @@ The `knowledge/` directory contains Markdown files served as MCP resources at `e
 - Repository access is scoped via `ALLOWED_REPOS`
 - HTTP transport supports a shared secret (`MCP_SECRET`) and per-session caps
 - Search queries are validated to prevent GitHub qualifier injection
-- Knowledge base content is sanitized on every read — lines matching known prompt-injection signatures (instruction overrides, role delimiter tags, persona hijacking) are redacted before the content reaches the agent
+- All user-controlled text from GitHub (issue bodies, PR bodies, release notes) and the knowledge base is sanitized before it reaches the agent — lines matching known prompt-injection signatures (instruction overrides, role delimiter tags, persona hijacking) are redacted
+- Lint inputs are capped at 100 KB to prevent resource exhaustion from oversized payloads
+- Branch names are validated against a safe character allowlist before any write is attempted
