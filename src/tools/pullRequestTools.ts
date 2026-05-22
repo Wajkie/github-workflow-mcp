@@ -4,12 +4,16 @@ import { z } from "zod";
 import { getChangedFiles, getPr } from "./pullRequest.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
 import { ok, toErrorContent } from "./response.js";
+import type { CacheClient } from "../cache.js";
+import { withCache } from "../cache.js";
 
 export function registerPullRequestTools(
   server: McpServer,
   octokit: Octokit,
   org: string,
   allowedRepos: string,
+  cache: CacheClient,
+  ttl: { prs: number },
 ) {
   server.registerTool(
     "get_pr",
@@ -24,7 +28,12 @@ export function registerPullRequestTools(
     async ({ repo, pr_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await getPr(octokit, org, repo, pr_number);
+        const data = await withCache(
+          cache,
+          `get_pr:${org}:${repo}:${pr_number}`,
+          ttl.prs,
+          () => getPr(octokit, org, repo, pr_number),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);
@@ -45,7 +54,12 @@ export function registerPullRequestTools(
     async ({ repo, pr_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await getChangedFiles(octokit, org, repo, pr_number);
+        const data = await withCache(
+          cache,
+          `get_changed_files:${org}:${repo}:${pr_number}`,
+          ttl.prs,
+          () => getChangedFiles(octokit, org, repo, pr_number),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);

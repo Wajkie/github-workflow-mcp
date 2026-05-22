@@ -18,4 +18,11 @@ export const config = {
   logLevel: optional("LOG_LEVEL", "info"),
   port: process.env["PORT"] ? parseInt(process.env["PORT"], 10) : undefined,
   databaseUrl: process.env["DATABASE_URL"],
+  redisUrl: process.env["REDIS_URL"],
+  cacheTtl: {
+    repos: parseInt(process.env["CACHE_TTL_REPOS"] ?? "300", 10),
+    prs: parseInt(process.env["CACHE_TTL_PRS"] ?? "120", 10),
+    issues: parseInt(process.env["CACHE_TTL_ISSUES"] ?? "120", 10),
+    files: parseInt(process.env["CACHE_TTL_FILES"] ?? "600", 10),
+  },
 } as const;

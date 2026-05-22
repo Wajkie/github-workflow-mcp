@@ -4,12 +4,16 @@ import { z } from "zod";
 import { getFile, getRepository, listRepositories, searchCode } from "./repositories.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
 import { ok, toErrorContent } from "./response.js";
+import type { CacheClient } from "../cache.js";
+import { withCache } from "../cache.js";
 
 export function registerRepositoryTools(
   server: McpServer,
   octokit: Octokit,
   org: string,
   allowedRepos: string,
+  cache: CacheClient,
+  ttl: { repos: number; files: number },
 ) {
   server.registerTool(
     "list_repositories",
@@ -19,7 +23,9 @@ export function registerRepositoryTools(
     },
     async () => {
       try {
-        const repos = await listRepositories(octokit, org);
+        const repos = await withCache(cache, `list_repositories:${org}`, ttl.repos, () =>
+          listRepositories(octokit, org),
+        );
         return ok({ repos });
       } catch (err) {
         return toErrorContent(err);
@@ -36,7 +42,9 @@ export function registerRepositoryTools(
     async ({ repo }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await getRepository(octokit, org, repo);
+        const data = await withCache(cache, `get_repository:${org}:${repo}`, ttl.repos, () =>
+          getRepository(octokit, org, repo),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);
@@ -60,7 +68,10 @@ export function registerRepositoryTools(
     async ({ repo, path, ref }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await getFile(octokit, org, repo, path, ref);
+        const cacheKey = `get_file:${org}:${repo}:${path}:${ref ?? "default"}`;
+        const data = await withCache(cache, cacheKey, ttl.files, () =>
+          getFile(octokit, org, repo, path, ref),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);
@@ -81,7 +92,9 @@ export function registerRepositoryTools(
     async ({ repo, query }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const items = await searchCode(octokit, org, repo, query);
+        const items = await withCache(cache, `search_code:${org}:${repo}:${query}`, ttl.repos, () =>
+          searchCode(octokit, org, repo, query),
+        );
         return ok({ items });
       } catch (err) {
         return toErrorContent(err);

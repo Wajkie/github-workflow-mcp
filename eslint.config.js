@@ -8,6 +8,12 @@ export default tseslint.config(
   {
     files: ["src/**/*.ts"],
     rules: {
+      // Allow _-prefixed parameters to mark intentionally unused ones.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+
       // PascalCase for type aliases, interfaces, and enums.
       // camelCase for everything else; UPPER_CASE allowed for module-level constants.
       // Leading underscore allowed on parameters to mark intentionally unused ones.

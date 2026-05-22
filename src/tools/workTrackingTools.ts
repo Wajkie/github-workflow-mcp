@@ -4,12 +4,16 @@ import { z } from "zod";
 import { getActiveWork, getIssue, searchIssues } from "./workTracking.js";
 import { denied, isRepoAllowed } from "./allowlist.js";
 import { ok, toErrorContent } from "./response.js";
+import type { CacheClient } from "../cache.js";
+import { withCache } from "../cache.js";
 
 export function registerWorkTrackingTools(
   server: McpServer,
   octokit: Octokit,
   org: string,
   allowedRepos: string,
+  cache: CacheClient,
+  ttl: { issues: number },
 ) {
   server.registerTool(
     "get_active_work",
@@ -20,7 +24,9 @@ export function registerWorkTrackingTools(
     },
     async () => {
       try {
-        const data = await getActiveWork(octokit, org, allowedRepos);
+        const data = await withCache(cache, `get_active_work:${org}`, ttl.issues, () =>
+          getActiveWork(octokit, org, allowedRepos),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);
@@ -41,7 +47,12 @@ export function registerWorkTrackingTools(
     async ({ repo, issue_number }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await getIssue(octokit, org, repo, issue_number);
+        const data = await withCache(
+          cache,
+          `get_issue:${org}:${repo}:${issue_number}`,
+          ttl.issues,
+          () => getIssue(octokit, org, repo, issue_number),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);
@@ -63,7 +74,13 @@ export function registerWorkTrackingTools(
     async ({ repo, query, page }) => {
       if (!isRepoAllowed(repo, allowedRepos)) return denied(repo);
       try {
-        const data = await searchIssues(octokit, org, repo, query, page ?? 1);
+        const resolvedPage = page ?? 1;
+        const data = await withCache(
+          cache,
+          `search_issues:${org}:${repo}:${query}:${resolvedPage}`,
+          ttl.issues,
+          () => searchIssues(octokit, org, repo, query, resolvedPage),
+        );
         return ok(data);
       } catch (err) {
         return toErrorContent(err);

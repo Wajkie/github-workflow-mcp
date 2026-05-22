@@ -4,6 +4,7 @@ import { Octokit } from "@octokit/rest";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { createAuditLogger, AuditLogger } from "./audit.js";
+import { createCache, CacheClient } from "./cache.js";
 import { startHttpServer } from "./http.js";
 import { registerRepositoryTools } from "./tools/repositoryTools.js";
 import { registerPullRequestTools } from "./tools/pullRequestTools.js";
@@ -35,10 +36,11 @@ async function registerAllTools(
   auditLog: AuditLogger,
   actor: string,
   knowledgeSearcher: KnowledgeSearcher,
+  cache: CacheClient,
 ): Promise<void> {
-  registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos);
-  registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos);
-  registerPullRequestTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
+  registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
+  registerPullRequestTools(s, octokit, config.githubOrg, config.allowedRepos, cache, config.cacheTtl);
   registerLintingTools(s, octokit, config.githubOrg);
   registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
@@ -46,15 +48,16 @@ async function registerAllTools(
   registerKnowledgeTools(s, knowledgeSearcher);
 }
 
-async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher): Promise<McpServer> {
+async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: KnowledgeSearcher, cache: CacheClient): Promise<McpServer> {
   const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
-  await registerAllTools(s, auditLog, actor, knowledgeSearcher);
+  await registerAllTools(s, auditLog, actor, knowledgeSearcher, cache);
   return s;
 }
 
 async function main() {
   const auditLog = await createAuditLogger(config.databaseUrl);
   const knowledgeSearcher = await createKnowledgeSearcher(config.databaseUrl);
+  const cache = createCache(config.redisUrl);
 
   let actor = "unknown";
   if (config.databaseUrl) {
@@ -64,7 +67,7 @@ async function main() {
     } catch { /* keep "unknown" if token cannot be resolved */ }
   }
 
-  registerAllTools(server, auditLog, actor, knowledgeSearcher);
+  registerAllTools(server, auditLog, actor, knowledgeSearcher, cache);
 
   const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
   logger.info({
@@ -74,10 +77,11 @@ async function main() {
     allowedRepos: config.allowedRepos,
     allowWrites: config.allowWrites,
     auditEnabled: !!config.databaseUrl,
+    cacheEnabled: !!config.redisUrl,
   });
 
   if (config.port !== undefined) {
-    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher), getHealthStatus);
+    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache), getHealthStatus);
   }
 
   const stdioTransport = new StdioServerTransport();
