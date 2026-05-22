@@ -2,7 +2,7 @@
   "meta": {
     "title": "GitHub Workflow MCP",
     "description": "A Model Context Protocol server that gives AI agents structured, scoped access to your GitHub engineering workflow.",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "repo": "https://github.com/Wajkie/github-workflow-mcp"
   },
 
