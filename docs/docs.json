@@ -297,6 +297,110 @@
       }
     },
     {
+      "id": "get_workflow_run",
+      "name": "get_workflow_run",
+      "category": "ci",
+      "requiresWrites": false,
+      "summary": "Get full detail for a specific workflow run by ID.",
+      "description": "Fetch status, conclusion, branch, commit SHA, trigger actor, and URL for a single GitHub Actions workflow run. Use when you have a run ID from get_recent_deployments and need to inspect it more closely.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "run_id", "type": "number", "required": true, "description": "Workflow run ID." }
+      ],
+      "returns": {
+        "description": "Workflow run detail.",
+        "shape": {
+          "id": "number",
+          "name": "string | null",
+          "status": "string",
+          "conclusion": "string | null",
+          "event": "string",
+          "branch": "string | null",
+          "sha": "string",
+          "triggered_by": "string | null",
+          "created_at": "string",
+          "updated_at": "string",
+          "url": "string"
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "run_id": 9876 },
+        "output": { "id": 9876, "name": "CI", "status": "completed", "conclusion": "failure", "event": "push", "branch": "main", "sha": "abc123", "triggered_by": "alice", "created_at": "2026-05-22T10:00:00Z", "updated_at": "2026-05-22T10:05:00Z", "url": "https://github.com/..." }
+      }
+    },
+    {
+      "id": "get_workflow_run_jobs",
+      "name": "get_workflow_run_jobs",
+      "category": "ci",
+      "requiresWrites": false,
+      "summary": "List all jobs in a workflow run with per-step conclusions.",
+      "description": "Fetch every job in a workflow run, including per-step name, status, and conclusion. Use to pinpoint exactly which step inside which job failed.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "run_id", "type": "number", "required": true, "description": "Workflow run ID." }
+      ],
+      "returns": {
+        "description": "Array of jobs with step detail.",
+        "shape": {
+          "jobs": [
+            {
+              "id": "number",
+              "name": "string",
+              "status": "string",
+              "conclusion": "string | null",
+              "started_at": "string | null",
+              "completed_at": "string | null",
+              "steps": [{ "name": "string", "status": "string", "conclusion": "string | null", "number": "number" }]
+            }
+          ]
+        }
+      },
+      "example": {
+        "input": { "repo": "api", "run_id": 9876 },
+        "output": { "jobs": [{ "id": 101, "name": "build", "status": "completed", "conclusion": "failure", "started_at": "2026-05-22T10:01:00Z", "completed_at": "2026-05-22T10:04:00Z", "steps": [{ "name": "Checkout", "status": "completed", "conclusion": "success", "number": 1 }, { "name": "Run tests", "status": "completed", "conclusion": "failure", "number": 2 }] }] }
+      }
+    },
+    {
+      "id": "get_failed_job_logs",
+      "name": "get_failed_job_logs",
+      "category": "ci",
+      "requiresWrites": false,
+      "summary": "Fetch the raw log output for a failed workflow job.",
+      "description": "Download the log output for a specific job (identified by job_id from get_workflow_run_jobs). Returns the tail of the log, capped at 50 KB, so the failure message is always included. Use to read the actual error without opening the browser.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "job_id", "type": "number", "required": true, "description": "Job ID (from get_workflow_run_jobs)." }
+      ],
+      "returns": {
+        "description": "Raw log text (tail, ≤ 50 KB).",
+        "shape": { "logs": "string" }
+      },
+      "example": {
+        "input": { "repo": "api", "job_id": 101 },
+        "output": { "logs": "##[error]Process completed with exit code 1.\n  ● Test suite failed to run\n    Cannot find module..." }
+      }
+    },
+    {
+      "id": "rerun_failed_jobs",
+      "name": "rerun_failed_jobs",
+      "category": "ci",
+      "requiresWrites": true,
+      "summary": "Trigger a rerun of only the failed jobs in a workflow run.",
+      "description": "Requeue the failed jobs in a workflow run without rerunning jobs that already passed. Use after diagnosing a transient CI failure. Requires ALLOW_WRITES=true.",
+      "inputs": [
+        { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." },
+        { "name": "run_id", "type": "number", "required": true, "description": "Workflow run ID whose failed jobs to rerun." }
+      ],
+      "returns": {
+        "description": "Confirmation that the rerun was queued.",
+        "shape": { "queued": "boolean", "run_id": "number" }
+      },
+      "example": {
+        "input": { "repo": "api", "run_id": 9876 },
+        "output": { "queued": true, "run_id": 9876 }
+      }
+    },
+    {
       "id": "lint_code",
       "name": "lint_code",
       "category": "linting",
@@ -626,6 +730,11 @@
               "toolRefs": ["get_release_status", "get_recent_deployments"]
             },
             {
+              "id": "ci",
+              "title": "CI / pipeline tools",
+              "toolRefs": ["get_workflow_run", "get_workflow_run_jobs", "get_failed_job_logs", "rerun_failed_jobs"]
+            },
+            {
               "id": "linting",
               "title": "Linting tools",
               "toolRefs": ["lint_code", "validate_diff", "validate_pr", "suggest_fixes", "apply_safe_fixes"]
@@ -657,7 +766,7 @@
                     { "name": "GITHUB_TOKEN", "required": true, "default": null, "description": "Fine-grained PAT. Needs repo read scope; add write scope if ALLOW_WRITES=true.", "example": "ghp_..." },
                     { "name": "GITHUB_ORG", "required": true, "default": null, "description": "GitHub organisation slug.", "example": "acme-corp" },
                     { "name": "ALLOWED_REPOS", "required": false, "default": "*", "description": "Comma-separated list of repository names the agent may access. Use * for all repos.", "example": "api,frontend,infra" },
-                    { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes).", "example": "true" },
+                    { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes, rerun_failed_jobs).", "example": "true" },
                     { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used for linting. Point this at your project root so lint_code, validate_diff, validate_pr, and apply_safe_fixes enforce your team's actual rules.", "example": "/home/app/my-project" },
                     { "name": "LOG_LEVEL", "required": false, "default": "info", "description": "Logging verbosity.", "example": "debug" },
                     { "name": "PORT", "required": false, "default": null, "description": "Enables the HTTP transport when set. Both stdio and HTTP run simultaneously when PORT is present.", "example": "3000" },
@@ -824,6 +933,10 @@
                       "summary": "Check what version of a project was last released and whether recent CI builds passed or failed."
                     },
                     {
+                      "label": "CI failure diagnostics",
+                      "summary": "Drill into a failed CI run to see which job and step failed, and read the raw log output — without opening the browser."
+                    },
+                    {
                       "label": "Your in-progress work",
                       "summary": "Ask the assistant to summarise everything currently assigned to you across all repositories."
                     },
@@ -866,6 +979,10 @@
                     {
                       "label": "Apply safe code fixes",
                       "summary": "Automatically correct formatting and style issues in a file and commit them to a new branch for review."
+                    },
+                    {
+                      "label": "Rerun failed CI jobs",
+                      "summary": "Trigger a rerun of only the jobs that failed in a CI run, without re-running jobs that already passed."
                     }
                   ]
                 }
