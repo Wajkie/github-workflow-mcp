@@ -92,12 +92,13 @@ Full tool reference, inputs, outputs, and examples: see [`docs/docs.json`](docs/
 | `GITHUB_ORG` | Yes | — | GitHub organisation slug |
 | `ALLOWED_REPOS` | No | `*` | Comma-separated repo names, or `*` for all |
 | `ALLOW_WRITES` | No | `false` | Set `true` to enable write tools |
-| `LINT_CWD` | No | server cwd | Directory whose `eslint.config.js` and `tsconfig.json` are used for linting. Point this at your project root so linting respects your team's rules. |
+| `LINT_CWD` | No | server cwd | Directory whose `eslint.config.js` and `tsconfig.json` are used as the server's default linting config. Must exist — the server exits at startup if not. `apply_safe_fixes` also fetches each target repo's own ESLint config at runtime; `LINT_CWD` is the fallback when none is found. |
 | `LOG_LEVEL` | No | `info` | `debug` \| `info` \| `warn` \| `error` |
 | `PORT` | No | — | Enables HTTP transport when set |
 | `MCP_SECRET` | No | — | Shared secret required on `x-mcp-secret` header (HTTP only) |
 | `MAX_BODY_BYTES` | No | `1048576` | Max HTTP request body size (bytes) |
 | `MAX_SESSIONS` | No | `100` | Max concurrent HTTP sessions |
+| `SESSION_TTL_MS` | No | `1800000` | Idle timeout for HTTP sessions (ms). Sessions inactive for this duration are evicted and closed. Default is 30 minutes. |
 | `DATABASE_URL` | No | — | Postgres — enables audit logging and knowledge search |
 | `REDIS_URL` | No | — | Redis — enables response caching |
 | `CACHE_TTL_REPOS` | No | `300` | Repo cache TTL (seconds) |
@@ -149,7 +150,7 @@ The `knowledge/` directory contains Markdown files served as MCP resources at `e
 - Write tools are disabled by default (`ALLOW_WRITES=false`)
 - All write operations are audit-logged when `DATABASE_URL` is set
 - Repository access is scoped via `ALLOWED_REPOS`
-- HTTP transport supports a shared secret (`MCP_SECRET`) and per-session caps
+- HTTP transport supports a shared secret (`MCP_SECRET`), per-session caps, and automatic idle-session eviction (`SESSION_TTL_MS`)
 - Search queries are validated to prevent GitHub qualifier injection
 - All user-controlled text from GitHub (issue bodies, PR bodies, release notes) and the knowledge base is sanitized before it reaches the agent — lines matching known prompt-injection signatures (instruction overrides, role delimiter tags, persona hijacking) are redacted
 - Lint inputs are capped at 100 KB to prevent resource exhaustion from oversized payloads
