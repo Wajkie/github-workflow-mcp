@@ -504,25 +504,27 @@
       "category": "linting",
       "requiresWrites": true,
       "summary": "Automatically fix safe lint issues and commit them to a branch.",
-      "description": "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and commit the result to a branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true. To write to an existing branch set only branch. To create a new branch first, set both branch (new name) and base_branch (source).",
+      "description": "Apply ESLint autofixable rules (formatting, import ordering, whitespace) to source code and commit the result to a branch. Returns a unified diff of the changes. Never touches logic, types, or renames. Requires ALLOW_WRITES=true. By default fetches and applies the target repo's own ESLint flat config so fixes respect the repo's rules, not just the server's. Falls back to the server config if the repo has none or if loading it fails. Set use_repo_config: false to always use the server config. To write to an existing branch set only branch; to create a new branch first set both branch (new name) and base_branch (source).",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." },
         { "name": "path", "type": "string", "required": true, "description": "File path within the repository." },
         { "name": "content", "type": "string", "required": true, "description": "Current file content to fix." },
         { "name": "branch", "type": "string", "required": true, "description": "Branch to commit fixes to. If this branch does not yet exist, supply base_branch to create it." },
-        { "name": "base_branch", "type": "string", "required": false, "description": "If provided, creates branch from this base before committing. Omit to write to an already-existing branch." }
+        { "name": "base_branch", "type": "string", "required": false, "description": "If provided, creates branch from this base before committing. Omit to write to an already-existing branch." },
+        { "name": "use_repo_config", "type": "boolean", "required": false, "description": "When true (default), fetches the target repo's ESLint flat config and applies it. Falls back to the server config if none is found or loading fails. Set to false to always use the server's own ESLint config." }
       ],
       "returns": {
-        "description": "Branch name and unified diff of applied changes, or a message if no fixes were needed.",
+        "description": "Branch name, unified diff of applied changes, and whether the repo's own config was used. Returns a message instead if no fixes were needed.",
         "shape": {
           "branch": "string (if fixes applied)",
           "diff": "string",
+          "repoConfigUsed": "boolean",
           "message": "string (if no fixes applied)"
         }
       },
       "example": {
         "input": { "repo": "api", "path": "src/index.ts", "content": "const x = 1\nexport {}\n", "branch": "fix/lint-index", "base_branch": "main" },
-        "output": { "branch": "fix/lint-index", "diff": "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,2 +1,2 @@\n-const x = 1\n+const x = 1;\n export {};\n" }
+        "output": { "branch": "fix/lint-index", "diff": "--- a/src/index.ts\n+++ b/src/index.ts\n@@ -1,2 +1,2 @@\n-const x = 1\n+const x = 1;\n export {};\n", "repoConfigUsed": true }
       }
     },
     {
@@ -810,12 +812,13 @@
                     { "name": "GITHUB_ORG", "required": true, "default": null, "description": "GitHub organisation slug.", "example": "acme-corp" },
                     { "name": "ALLOWED_REPOS", "required": false, "default": "*", "description": "Comma-separated list of repository names the agent may access. Use * for all repos.", "example": "api,frontend,infra" },
                     { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes, rerun_failed_jobs).", "example": "true" },
-                    { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used for linting. Point this at your project root so lint_code, validate_diff, validate_pr, and apply_safe_fixes enforce your team's actual rules.", "example": "/home/app/my-project" },
+                    { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used as the server's default linting config. The directory must exist — the server exits on startup with an error if it does not. apply_safe_fixes also tries to fetch each target repo's own ESLint config at runtime; LINT_CWD is used as the fallback when the repo has none.", "example": "/home/app/my-project" },
                     { "name": "LOG_LEVEL", "required": false, "default": "info", "description": "Logging verbosity.", "example": "debug" },
                     { "name": "PORT", "required": false, "default": null, "description": "Enables the HTTP transport when set. Both stdio and HTTP run simultaneously when PORT is present.", "example": "3000" },
                     { "name": "MCP_SECRET", "required": false, "default": null, "description": "If set, all /mcp requests must include an x-mcp-secret header matching this value.", "example": "a-long-random-secret" },
                     { "name": "MAX_BODY_BYTES", "required": false, "default": "1048576", "description": "Maximum HTTP request body size in bytes.", "example": "2097152" },
                     { "name": "MAX_SESSIONS", "required": false, "default": "100", "description": "Maximum number of concurrent HTTP MCP sessions.", "example": "50" },
+                    { "name": "SESSION_TTL_MS", "required": false, "default": "1800000", "description": "Idle timeout for HTTP MCP sessions in milliseconds. Sessions that receive no requests for this duration are evicted and closed automatically. Default is 30 minutes.", "example": "900000" },
                     { "name": "DATABASE_URL", "required": false, "default": null, "description": "Postgres connection string. Enables audit logging and knowledge search.", "example": "postgresql://user:pass@host:5432/db" },
                     { "name": "REDIS_URL", "required": false, "default": null, "description": "Redis connection string. Enables response caching.", "example": "redis://localhost:6379" },
                     { "name": "CACHE_TTL_REPOS", "required": false, "default": "300", "description": "Repository list cache TTL in seconds.", "example": "600" },
@@ -853,7 +856,7 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "Two transports run simultaneously when PORT is set. stdio uses a single shared McpServer instance. HTTP creates a separate McpServer per session (via StreamableHTTPServerTransport) so session state is isolated. Both share the same Octokit instance, audit logger, cache, and observability middleware."
+                  "body": "Two transports run simultaneously when PORT is set. stdio uses a single shared McpServer instance. HTTP creates a separate McpServer per session (via StreamableHTTPServerTransport) so session state is isolated. Both share the same Octokit instance, audit logger, cache, and observability middleware. HTTP sessions are capped at MAX_SESSIONS and evicted after SESSION_TTL_MS of inactivity (default 30 minutes) so a slow or dropped client cannot hold a slot indefinitely."
                 },
                 {
                   "type": "prose",
