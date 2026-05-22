@@ -12,6 +12,8 @@ import { registerLintingTools } from "./tools/lintingTools.js";
 import { registerGithubWriteTools } from "./tools/githubWriteTools.js";
 import { registerReleaseTools } from "./tools/releaseTools.js";
 import { registerKnowledgeResources } from "./resources/knowledgeResources.js";
+import { registerKnowledgeTools } from "./tools/knowledgeTools.js";
+import { createKnowledgeSearcher } from "./knowledge/search.js";
 
 const octokit = new Octokit({ auth: config.githubToken });
 
@@ -26,7 +28,7 @@ export function getHealthStatus() {
   };
 }
 
-function buildMcpServer(auditLog: AuditLogger, actor: string): McpServer {
+function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSearcher: Awaited<ReturnType<typeof createKnowledgeSearcher>>): McpServer {
   const s = new McpServer({ name: "github-workflow-mcp", version: "0.1.0" });
   registerRepositoryTools(s, octokit, config.githubOrg, config.allowedRepos);
   registerWorkTrackingTools(s, octokit, config.githubOrg, config.allowedRepos);
@@ -35,11 +37,13 @@ function buildMcpServer(auditLog: AuditLogger, actor: string): McpServer {
   registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
   registerKnowledgeResources(s);
+  registerKnowledgeTools(s, knowledgeSearcher);
   return s;
 }
 
 async function main() {
   const auditLog = await createAuditLogger(config.databaseUrl);
+  const knowledgeSearcher = await createKnowledgeSearcher(config.databaseUrl);
 
   let actor = "unknown";
   if (config.databaseUrl) {
@@ -56,6 +60,7 @@ async function main() {
   registerGithubWriteTools(server, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(server, octokit, config.githubOrg, config.allowedRepos);
   registerKnowledgeResources(server);
+  registerKnowledgeTools(server, knowledgeSearcher);
 
   const transports = config.port !== undefined ? ["stdio", "http"] : ["stdio"];
   logger.info({
@@ -68,7 +73,7 @@ async function main() {
   });
 
   if (config.port !== undefined) {
-    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor), getHealthStatus);
+    await startHttpServer(config.port, () => buildMcpServer(auditLog, actor, knowledgeSearcher), getHealthStatus);
   }
 
   const stdioTransport = new StdioServerTransport();
