@@ -95,15 +95,15 @@ async function dispatch(
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => randomUUID(),
+      onsessioninitialized: (sid) => {
+        transports.set(sid, transport);
+      },
     });
     transport.onclose = () => {
       if (transport.sessionId) transports.delete(transport.sessionId);
     };
     const mcpServer = await serverFactory();
     await mcpServer.connect(transport);
-    if (transport.sessionId) {
-      transports.set(transport.sessionId, transport);
-    }
     await transport.handleRequest(req, res);
     return;
   }
