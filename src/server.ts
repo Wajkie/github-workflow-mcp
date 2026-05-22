@@ -56,7 +56,7 @@ async function buildMcpServer(auditLog: AuditLogger, actor: string, knowledgeSea
 }
 
 async function main() {
-  const auditLog = await createAuditLogger(config.databaseUrl);
+  const { log: auditLog, dashboard: auditDashboard } = await createAuditLogger(config.databaseUrl);
   const knowledgeSearcher = await createKnowledgeSearcher(config.databaseUrl);
   const cache = createCache(config.redisUrl);
 
@@ -88,7 +88,7 @@ async function main() {
       config.port,
       () => buildMcpServer(auditLog, actor, knowledgeSearcher, cache, obs),
       getHealthStatus,
-      { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions },
+      { secret: config.mcpSecret, maxBodyBytes: config.maxBodyBytes, maxSessions: config.maxSessions, getAuditEntries: config.databaseUrl ? auditDashboard : undefined },
     );
   }
 

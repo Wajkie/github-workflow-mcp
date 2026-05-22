@@ -131,3 +131,46 @@ describe("session cap", () => {
     expect(await res.json()).toMatchObject({ error: "Session limit reached" });
   });
 });
+
+describe("audit dashboard", () => {
+  const PORT6 = 19876;
+  const PORT7 = 19877;
+
+  const fakeRow = { id: "1", tool_name: "list_repos", inputs: {}, outcome: "success", error_msg: null, actor: "alice", created_at: "2026-01-01T00:00:00Z" };
+
+  beforeAll(async () => {
+    await startHttpServer(PORT6, fakeFactory, () => ({ status: "ok" }), {
+      maxBodyBytes: 1_048_576,
+      maxSessions: 100,
+      getAuditEntries: async () => [fakeRow],
+    });
+    await startHttpServer(PORT7, fakeFactory, () => ({ status: "ok" }), {
+      maxBodyBytes: 1_048_576,
+      maxSessions: 100,
+    });
+  });
+
+  it("GET /audit returns HTML with audit rows", async () => {
+    const res = await fetch(`http://localhost:${PORT6}/audit`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+    const body = await res.text();
+    expect(body).toContain("list_repos");
+    expect(body).toContain("alice");
+  });
+
+  it("GET /audit?format=json returns JSON array", async () => {
+    const res = await fetch(`http://localhost:${PORT6}/audit?format=json`);
+    expect(res.status).toBe(200);
+    const data = await res.json() as unknown[];
+    expect(Array.isArray(data)).toBe(true);
+    expect(data).toHaveLength(1);
+  });
+
+  it("GET /audit without DB shows no-DB banner", async () => {
+    const res = await fetch(`http://localhost:${PORT7}/audit`);
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("No database configured");
+  });
+});

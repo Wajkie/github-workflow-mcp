@@ -27,15 +27,30 @@ const INSERT_SQL = `
   VALUES ($1, $2, $3, $4, $5)
 `;
 
-export async function createAuditLogger(databaseUrl: string | undefined): Promise<AuditLogger> {
+export interface AuditRow {
+  id: string;
+  tool_name: string;
+  inputs: Record<string, unknown>;
+  outcome: string;
+  error_msg: string | null;
+  actor: string;
+  created_at: string;
+}
+
+export type AuditDashboard = (limit: number) => Promise<AuditRow[]>;
+
+export async function createAuditLogger(databaseUrl: string | undefined): Promise<{ log: AuditLogger; dashboard: AuditDashboard }> {
   if (!databaseUrl) {
-    return async () => {};
+    return {
+      log: async () => {},
+      dashboard: async () => [],
+    };
   }
 
   const pool = new Pool({ connectionString: databaseUrl });
   await pool.query(CREATE_TABLE_SQL);
 
-  return async (entry: AuditEntry) => {
+  const log: AuditLogger = async (entry: AuditEntry) => {
     await pool.query(INSERT_SQL, [
       entry.tool,
       JSON.stringify(entry.inputs),
@@ -44,4 +59,14 @@ export async function createAuditLogger(databaseUrl: string | undefined): Promis
       entry.actor,
     ]);
   };
+
+  const dashboard: AuditDashboard = async (limit: number) => {
+    const result = await pool.query<AuditRow>(
+      "SELECT id, tool_name, inputs, outcome, error_msg, actor, created_at FROM audit_log ORDER BY created_at DESC LIMIT $1",
+      [limit],
+    );
+    return result.rows;
+  };
+
+  return { log, dashboard };
 }
