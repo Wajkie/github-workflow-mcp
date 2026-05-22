@@ -87,7 +87,7 @@ async function lintWithTypescript(content: string, filename: string, lintCwd: st
   const tmpFile = join(tmpdir(), `mcp-ts-${randomUUID()}-${basename(filename)}`);
   try {
     await writeFile(tmpFile, content, "utf-8");
-    const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile);
+    const configFile = ts.readConfigFile(tsconfigPath, ts.sys.readFile) as { config: object; error?: ts.Diagnostic };
     const { options } = ts.parseJsonConfigFileContent(configFile.config, ts.sys, lintCwd);
     const program = ts.createProgram([tmpFile], { ...options, noEmit: true, skipLibCheck: true });
     const diagnostics = ts.getPreEmitDiagnostics(program);
