@@ -12,6 +12,7 @@ import { registerWorkTrackingTools } from "./tools/workTrackingTools.js";
 import { registerLintingTools } from "./tools/lintingTools.js";
 import { registerGithubWriteTools } from "./tools/githubWriteTools.js";
 import { registerReleaseTools } from "./tools/releaseTools.js";
+import { registerCiTools } from "./tools/ciTools.js";
 import { registerKnowledgeResources } from "./resources/knowledgeResources.js";
 import { registerKnowledgeTools } from "./tools/knowledgeTools.js";
 import { createKnowledgeSearcher } from "./knowledge/search.js";
@@ -42,6 +43,7 @@ async function registerAllTools(
   registerLintingTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor, config.lintCwd);
   registerGithubWriteTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites, auditLog, actor);
   registerReleaseTools(s, octokit, config.githubOrg, config.allowedRepos);
+  registerCiTools(s, octokit, config.githubOrg, config.allowedRepos, config.allowWrites);
   await registerKnowledgeResources(s);
   registerKnowledgeTools(s, knowledgeSearcher);
 }
