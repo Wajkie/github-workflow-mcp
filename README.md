@@ -74,11 +74,12 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
 |---|---|
 | **Repositories** | `list_repositories`, `get_repository`, `get_file`, `search_code` |
 | **Work tracking** | `get_active_work`, `get_issue`, `search_issues` |
-| **Pull requests** | `get_pr`, `get_changed_files` |
+| **Pull requests** | `list_pull_requests`, `get_pr`, `get_changed_files` |
 | **Releases** | `get_release_status`, `get_recent_deployments` |
+| **CI** | `get_workflow_run`, `get_workflow_run_jobs`, `get_failed_job_logs`, `rerun_failed_jobs` |
 | **Linting** | `lint_code`, `validate_diff`, `validate_pr`, `suggest_fixes`, `apply_safe_fixes` |
 | **Knowledge** | `search_knowledge` |
-| **Write** *(requires `ALLOW_WRITES=true`)* | `create_branch`, `create_pull_request`, `request_review`, `merge_pr` |
+| **Write** *(requires `ALLOW_WRITES=true`)* | `create_branch`, `create_or_update_file`, `create_pull_request`, `request_review`, `merge_pr` |
 
 Full tool reference, inputs, outputs, and examples: see [`docs/docs.json`](docs/docs.json).
 
