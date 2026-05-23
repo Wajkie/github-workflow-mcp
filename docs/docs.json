@@ -874,7 +874,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "All user-controlled text returned by the server passes through a shared sanitizer (src/sanitize.ts) before reaching the agent. This covers knowledge base reads and search excerpts, and GitHub API responses — issue bodies, PR bodies, and release notes. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands."
+                  "body": "All user-controlled text returned by the server is processed by src/sanitize.ts before reaching the agent, using two complementary defences. First, redactKnownInjectionPatterns scans each line for known injection signatures — instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands — and replaces matching lines with an inline comment that records the original line number (e.g. <!-- [redacted: potential prompt injection, line 42] -->). Second, wrapUntrustedContent adds explicit boundary markers so the model can distinguish retrieved data from trusted instructions: high-risk fields (issue bodies, PR bodies, release notes, knowledge excerpts) are delivered wrapped in BEGIN_UNTRUSTED_GITHUB_CONTENT / END_UNTRUSTED_GITHUB_CONTENT. CI log output is redacted but not wrapped — it is developer tooling output rather than user-controlled text. Source code, config files, and other structural content are not sanitized."
                 }
               ]
             },
@@ -1177,7 +1177,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "Any text that comes from GitHub — issue descriptions, pull request bodies, release notes — as well as the knowledge base files, is automatically scanned before it reaches the AI. If those sources contain hidden instructions designed to manipulate the AI's behaviour, those lines are removed before the content is served."
+                  "body": "Any text that comes from GitHub — issue descriptions, pull request bodies, release notes — as well as the knowledge base files, is automatically processed before it reaches the AI. Hidden instructions designed to manipulate the AI's behaviour are removed and flagged. Additionally, all user-generated content is clearly labelled as untrusted data so the AI knows to treat it as information, not as instructions to follow."
                 }
               ]
             }

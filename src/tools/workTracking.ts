@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { sanitizeContent } from "../sanitize.js";
+import { wrapUntrustedContent } from "../sanitize.js";
 
 export async function getActiveWork(
   octokit: Octokit,
@@ -48,7 +48,7 @@ export async function getIssue(
   return {
     number: data.number,
     title: data.title,
-    body: data.body ? sanitizeContent(data.body) : null,
+    body: data.body ? wrapUntrustedContent(data.body) : null,
     state: data.state,
     labels: data.labels.map((l) => (typeof l === "string" ? l : (l.name ?? ""))),
     assignees: (data.assignees ?? []).map((a) => a.login),

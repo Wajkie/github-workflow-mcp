@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { sanitizeContent } from "../sanitize.js";
+import { redactKnownInjectionPatterns } from "../sanitize.js";
 
 const LOG_CAP = 50_000;
 
@@ -50,7 +50,7 @@ export async function getFailedJobLogs(octokit: Octokit, org: string, repo: stri
     job_id: jobId,
   });
   const raw = typeof response.data === "string" ? response.data : String(response.data);
-  const text = sanitizeContent(raw);
+  const { text } = redactKnownInjectionPatterns(raw);
   // Return the tail so the failure message is always included
   return text.length > LOG_CAP ? text.slice(-LOG_CAP) : text;
 }

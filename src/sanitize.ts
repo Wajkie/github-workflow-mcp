@@ -19,11 +19,25 @@ const INJECTION_PATTERNS: RegExp[] = [
   /(?:override|bypass)\s+(?:your\s+)?(?:previous\s+)?(?:safety\s+)?instructions?/i,
 ];
 
-const REDACTED = "<!-- [redacted: potential prompt injection] -->";
+export interface RedactionResult {
+  text: string;
+  redactedLines: number[];
+}
 
-export function sanitizeContent(text: string): string {
-  return text
-    .split("\n")
-    .map((line) => (INJECTION_PATTERNS.some((p) => p.test(line)) ? REDACTED : line))
-    .join("\n");
+export function redactKnownInjectionPatterns(text: string): RedactionResult {
+  const redactedLines: number[] = [];
+  const lines = text.split("\n");
+  const redacted = lines.map((line, i) => {
+    if (INJECTION_PATTERNS.some((p) => p.test(line))) {
+      redactedLines.push(i + 1);
+      return `<!-- [redacted: potential prompt injection, line ${i + 1}] -->`;
+    }
+    return line;
+  });
+  return { text: redacted.join("\n"), redactedLines };
+}
+
+export function wrapUntrustedContent(text: string): string {
+  const { text: redacted } = redactKnownInjectionPatterns(text);
+  return `BEGIN_UNTRUSTED_GITHUB_CONTENT\n${redacted}\nEND_UNTRUSTED_GITHUB_CONTENT`;
 }

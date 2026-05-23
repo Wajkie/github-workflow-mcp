@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { sanitizeContent } from "../sanitize.js";
+import { wrapUntrustedContent } from "../sanitize.js";
 
 export async function getReleaseStatus(octokit: Octokit, org: string, repo: string) {
   const { data } = await octokit.rest.repos.getLatestRelease({ owner: org, repo });
@@ -9,7 +9,7 @@ export async function getReleaseStatus(octokit: Octokit, org: string, repo: stri
     published_at: data.published_at ?? null,
     draft: data.draft,
     prerelease: data.prerelease,
-    body_summary: data.body ? sanitizeContent(data.body.slice(0, 500)) : null,
+    body_summary: data.body ? wrapUntrustedContent(data.body.slice(0, 500)) : null,
     url: data.html_url,
   };
 }

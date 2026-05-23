@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { sanitizeContent } from "../sanitize.js";
+import { wrapUntrustedContent } from "../sanitize.js";
 
 export interface SearchResult {
   file: string;
@@ -135,7 +135,7 @@ export async function createKnowledgeSearcher(
         results: rows.map((r) => ({
           file: r.file,
           section: r.section,
-          excerpt: sanitizeContent(r.excerpt),
+          excerpt: wrapUntrustedContent(r.excerpt),
           score: Math.round(r.score * 100) / 100,
         })),
       };

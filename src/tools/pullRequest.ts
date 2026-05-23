@@ -1,5 +1,5 @@
 import type { Octokit } from "@octokit/rest";
-import { sanitizeContent } from "../sanitize.js";
+import { wrapUntrustedContent } from "../sanitize.js";
 
 export async function listPullRequests(
   octokit: Octokit,
@@ -38,7 +38,7 @@ export async function getPr(octokit: Octokit, org: string, repo: string, prNumbe
   return {
     number: data.number,
     title: data.title,
-    body: data.body ? sanitizeContent(data.body) : null,
+    body: data.body ? wrapUntrustedContent(data.body) : null,
     state: data.state,
     draft: data.draft ?? false,
     head: data.head.ref,

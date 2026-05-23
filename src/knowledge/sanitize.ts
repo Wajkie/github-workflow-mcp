@@ -1,1 +1,1 @@
-export { sanitizeContent } from "../sanitize.js";
+export { redactKnownInjectionPatterns, wrapUntrustedContent } from "../sanitize.js";
