@@ -146,6 +146,92 @@ The `knowledge/` directory contains Markdown files served as MCP resources at `e
 
 ---
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────┐
+│                     Transports                      │
+│  stdio (shared McpServer)  │  HTTP (per-session)    │
+│                            │  /mcp  /health  /audit │
+└────────────────────────────┴────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────┐
+│              Observability middleware                │
+│  monkey-patches registerTool — latency + structured │
+│  logging on every handler, no per-tool changes      │
+└─────────────────────────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────┐
+│            Tool registration  (*Tools.ts)            │
+│  Zod-validated MCP schemas bound to domain calls    │
+│  allowlist guard → write gate → domain function     │
+└─────────────────────────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────┐
+│                   Domain layer                      │
+│  repositories │ pullRequest │ workTracking │ release │
+│  ci           │ linting     │ knowledge    │ write   │
+│  Pure GitHub API calls — no MCP dependency          │
+└─────────────────────────────────────────────────────┘
+                        │
+┌───────────────────────▼─────────────────────────────┐
+│               Shared infrastructure                 │
+│  sanitize.ts   audit.ts   cache.ts   observability  │
+└─────────────────────────────────────────────────────┘
+```
+
+**Layers in brief**
+
+- **Transport** — `server.ts` wires stdio and HTTP. HTTP creates a separate `McpServer` per session (isolated state); both transports share the same Octokit instance, audit logger, and cache.
+- **Tool registration** — `*Tools.ts` files bind Zod-validated schemas to domain functions. Every handler passes through the allowlist guard and write gate before reaching domain logic.
+- **Domain** — pure functions that call GitHub APIs. No MCP imports; straightforward to test.
+- **Observability** — `observability.ts` monkey-patches `McpServer.registerTool` at startup, wrapping every handler with latency tracking and structured logging.
+- **sanitize.ts** — two-layer prompt-injection defence applied to all user-controlled text before it reaches the agent (see Security below).
+
+**Source layout**
+
+```
+src/
+├── server.ts                  # entry point — wires transports, Octokit, shared services
+├── config.ts                  # env-var parsing and validation
+├── logger.ts                  # structured logger (pino)
+├── sanitize.ts                # redactKnownInjectionPatterns + wrapUntrustedContent
+├── audit.ts                   # audit log factory (no-op when no DATABASE_URL)
+├── cache.ts                   # CacheClient interface, NoOpCache, withCache helper
+├── observability.ts           # registerTool monkey-patch for latency + metrics
+├── http.ts                    # Hono HTTP server, session map, /health, /audit
+│
+├── tools/                     # tool registration + domain logic (paired files)
+│   ├── repositories.ts        # domain: list_repositories, get_repository, get_file, search_code
+│   ├── repositoryTools.ts     # MCP registration for repository tools
+│   ├── workTracking.ts        # domain: get_active_work, get_issue, search_issues
+│   ├── workTrackingTools.ts
+│   ├── pullRequest.ts         # domain: list_pull_requests, get_pr, get_changed_files
+│   ├── pullRequestTools.ts
+│   ├── release.ts             # domain: get_release_status, get_recent_deployments
+│   ├── releaseTools.ts
+│   ├── ci.ts                  # domain: get_workflow_run, get_workflow_run_jobs, get_failed_job_logs, rerun_failed_jobs
+│   ├── ciTools.ts
+│   ├── linting.ts             # domain: lint_code, validate_diff, validate_pr, suggest_fixes
+│   ├── lintingTools.ts
+│   ├── diff.ts                # unified diff parser (shared by linting + apply_safe_fixes)
+│   ├── githubWrite.ts         # domain: create_branch, create_or_update_file, create_pull_request, request_review, merge_pr, apply_safe_fixes
+│   ├── githubWriteTools.ts
+│   ├── knowledgeTools.ts      # MCP registration for search_knowledge
+│   ├── allowlist.ts           # ALLOWED_REPOS guard (pure, no side effects)
+│   ├── writeGate.ts           # ALLOW_WRITES gate
+│   └── response.ts            # shared ok() / error() response helpers
+│
+├── knowledge/
+│   ├── search.ts              # pg_trgm searcher + Markdown chunker
+│   └── sanitize.ts            # re-exports from ../sanitize.ts
+│
+└── resources/
+    └── knowledgeResources.ts  # registers knowledge/ files as engineering:/// MCP resources
+```
+
+---
+
 ## Security
 
 - Write tools are disabled by default (`ALLOW_WRITES=false`)
@@ -153,6 +239,6 @@ The `knowledge/` directory contains Markdown files served as MCP resources at `e
 - Repository access is scoped via `ALLOWED_REPOS`
 - HTTP transport supports a shared secret (`MCP_SECRET`), per-session caps, and automatic idle-session eviction (`SESSION_TTL_MS`)
 - Search queries are validated to prevent GitHub qualifier injection
-- All user-controlled text from GitHub (issue bodies, PR bodies, release notes) and the knowledge base is sanitized before it reaches the agent — lines matching known prompt-injection signatures (instruction overrides, role delimiter tags, persona hijacking) are redacted
+- User-controlled text from GitHub (issue bodies, PR bodies, release notes) and the knowledge base is protected by two layers before it reaches the agent: lines matching known prompt-injection signatures (instruction overrides, role delimiter tags, persona hijacking) are redacted with a comment recording the original line number; and all such content is wrapped in `BEGIN_UNTRUSTED_GITHUB_CONTENT` / `END_UNTRUSTED_GITHUB_CONTENT` markers so the model treats it as data, not instructions. Source code, config files, and CI log output are not wrapped.
 - Lint inputs are capped at 100 KB to prevent resource exhaustion from oversized payloads
 - Branch names are validated against a safe character allowlist before any write is attempted
