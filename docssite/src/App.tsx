@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import rawData from '../../docs/docs.json';
 import type { DocsData, ContentBlock, Tool, ToolGroup } from './types/docs';
 import { useActiveSection } from './hooks/useActiveSection';
@@ -7,8 +8,6 @@ import CopyButton from './components/CopyButton';
 
 const data = rawData as unknown as DocsData;
 const { meta, tools, audiences } = data;
-const sections = audiences.developer.sections;
-const sectionIds = sections.map((s) => s.id);
 const toolMap = Object.fromEntries(tools.map((t) => [t.id, t]));
 
 function Block({ block }: { block: ContentBlock }): React.ReactElement | null {
@@ -144,13 +143,15 @@ function ToolsGroup({ group }: { group: ToolGroup }): React.ReactElement {
 }
 
 function App(): React.ReactElement {
-  const activeId = useActiveSection(sectionIds);
-
-  const navItems = sections.map((s) => ({ key: s.id, title: s.title }));
+  const [audience, setAudience] = useState<'developer' | 'business'>('developer');
+  const activeSections = audiences[audience].sections;
+  const activeSectionIds = activeSections.map((s) => s.id);
+  const activeId = useActiveSection(activeSectionIds);
+  const navItems = activeSections.map((s) => ({ key: s.id, title: s.title }));
 
   return (
     <div className="layout">
-      <Nav items={navItems} activeId={activeId} />
+      <Nav brand={meta.title} items={navItems} activeId={activeId} audience={audience} onAudienceChange={setAudience} />
       <main className="main-content">
         <header className="site-header">
           <h1 className="site-title">{meta.title}</h1>
@@ -166,7 +167,7 @@ function App(): React.ReactElement {
           </div>
         </header>
 
-        {sections.map((section, index) => (
+        {activeSections.map((section, index) => (
           <SectionWrapper
             key={section.id}
             id={section.id}
@@ -188,7 +189,7 @@ function App(): React.ReactElement {
           </SectionWrapper>
         ))}
         <footer className="site-footer">
-          © {new Date().getFullYear()} Wajkie - All Rights reserved.
+          {meta.title} — Documentation
         </footer>
       </main>
     </div>
