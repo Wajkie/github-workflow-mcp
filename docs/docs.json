@@ -43,7 +43,7 @@
       "category": "repositories",
       "requiresWrites": false,
       "summary": "Get detailed information about a specific repository.",
-      "description": "Fetch metadata for a single repository â€” language, topics, open issue count, size, and visibility.",
+      "description": "Fetch metadata for a single repository — language, topics, open issue count, size, and visibility.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name (without owner prefix)." }
       ],
@@ -276,7 +276,7 @@
       "category": "releases",
       "requiresWrites": false,
       "summary": "Check the latest release of a repository.",
-      "description": "Fetch the latest GitHub release â€” tag name, publish date, draft/prerelease status, and a summary of the release notes (capped at 500 characters).",
+      "description": "Fetch the latest GitHub release — tag name, publish date, draft/prerelease status, and a summary of the release notes (capped at 500 characters).",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." }
       ],
@@ -303,7 +303,7 @@
       "category": "releases",
       "requiresWrites": false,
       "summary": "See the last 10 CI/CD workflow runs for a repository.",
-      "description": "Fetch the 10 most recent GitHub Actions workflow runs â€” name, status, conclusion, trigger event, branch, and timestamps.",
+      "description": "Fetch the 10 most recent GitHub Actions workflow runs — name, status, conclusion, trigger event, branch, and timestamps.",
       "inputs": [
         { "name": "repo", "type": "string", "required": true, "description": "Repository name." }
       ],
@@ -392,12 +392,12 @@
         { "name": "job_id", "type": "number", "required": true, "description": "Job ID (from get_workflow_run_jobs)." }
       ],
       "returns": {
-        "description": "Raw log text (tail, â‰¤ 50 KB).",
+        "description": "Raw log text (tail, ≤ 50 KB).",
         "shape": { "logs": "string" }
       },
       "example": {
         "input": { "repo": "api", "job_id": 101 },
-        "output": { "logs": "##[error]Process completed with exit code 1.\n  â— Test suite failed to run\n    Cannot find module..." }
+        "output": { "logs": "##[error]Process completed with exit code 1.\n  ● Test suite failed to run\n    Cannot find module..." }
       }
     },
     {
@@ -426,10 +426,10 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Check a piece of code for errors and style issues.",
-      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config. ESLint and TypeScript config are loaded from LINT_CWD (defaults to the server's own directory â€” set LINT_CWD to your project root to enforce your team's rules). Returns violations with severity, rule ID, line/column, explanation, and suggested fix. Input is capped at 100 KB.",
+      "description": "Lint a string of code inline. The filename is used to infer the language and resolve linter config. ESLint and TypeScript config are loaded from LINT_CWD (defaults to the server's own directory — set LINT_CWD to your project root to enforce your team's rules). Returns violations with severity, rule ID, line/column, explanation, and suggested fix. Input is capped at 100 KB.",
       "inputs": [
         { "name": "content", "type": "string", "required": true, "description": "Source code to lint." },
-        { "name": "filename", "type": "string", "required": true, "description": "Filename (e.g. src/utils.ts). Used to select the linter and resolve config â€” the file does not need to exist on disk." }
+        { "name": "filename", "type": "string", "required": true, "description": "Filename (e.g. src/utils.ts). Used to select the linter and resolve config — the file does not need to exist on disk." }
       ],
       "returns": {
         "description": "Array of lint violations.",
@@ -485,7 +485,7 @@
       "category": "linting",
       "requiresWrites": false,
       "summary": "Turn lint violations into actionable edit suggestions.",
-      "description": "Convert lint violations into structured edit suggestions. Returns only violations that have a suggested fix. Never writes to disk â€” the agent decides what to do with the suggestions.",
+      "description": "Convert lint violations into structured edit suggestions. Returns only violations that have a suggested fix. Never writes to disk — the agent decides what to do with the suggestions.",
       "inputs": [
         { "name": "violations", "type": "LintViolation[]", "required": true, "description": "Violations from lint_code, validate_diff, or validate_pr." }
       ],
@@ -673,7 +673,7 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "GitHub Workflow MCP is a Model Context Protocol server that exposes your GitHub engineering workflow to AI agents. It gives agents structured, scoped access to repositories, pull requests, issues, CI runs, linting tooling, and an engineering knowledge base â€” enough to understand and participate in the software delivery lifecycle."
+                  "body": "GitHub Workflow MCP is a Model Context Protocol server that exposes your GitHub engineering workflow to AI agents. It gives agents structured, scoped access to repositories, pull requests, issues, CI runs, linting tooling, and an engineering knowledge base — enough to understand and participate in the software delivery lifecycle."
                 },
                 {
                   "type": "prose",
@@ -693,11 +693,11 @@
                 {
                   "type": "list",
                   "items": [
-                    "Expose workflows, not raw systems â€” tools map to tasks, not API endpoints",
-                    "Prefer retrieval over preloading â€” agents fetch what they need, when they need it",
+                    "Expose workflows, not raw systems — tools map to tasks, not API endpoints",
+                    "Prefer retrieval over preloading — agents fetch what they need, when they need it",
                     "Tools are small, composable, and deterministic",
-                    "Least-privilege access â€” reads are always safe, writes require explicit opt-in",
-                    "Multi-repository from day one â€” all tools accept a repo parameter and respect ALLOWED_REPOS"
+                    "Least-privilege access — reads are always safe, writes require explicit opt-in",
+                    "Multi-repository from day one — all tools accept a repo parameter and respect ALLOWED_REPOS"
                   ]
                 }
               ]
@@ -714,12 +714,12 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "Prerequisites: Node.js â‰¥ 20, a GitHub fine-grained PAT with repo read scope."
+                  "body": "Prerequisites: Node.js ≥ 20, a GitHub fine-grained PAT with repo read scope."
                 },
                 {
                   "type": "code",
                   "lang": "bash",
-                  "body": "git clone https://github.com/Wajkie/github-workflow-mcp\ncd github-workflow-mcp\nnpm install\ncp .env.example .env\n# Edit .env â€” set GITHUB_TOKEN and GITHUB_ORG at minimum\nnpm run dev"
+                  "body": "git clone https://github.com/Wajkie/github-workflow-mcp\ncd github-workflow-mcp\nnpm install\ncp .env.example .env\n# Edit .env — set GITHUB_TOKEN and GITHUB_ORG at minimum\nnpm run dev"
                 },
                 {
                   "type": "prose",
@@ -744,7 +744,7 @@
                   "type": "code",
                   "lang": "json",
                   "label": "claude_desktop_config.json",
-                  "body": "{\n  \"mcpServers\": {\n    \"github-workflow\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/dist/server.js\"],\n      \"env\": {\n        \"GITHUB_TOKEN\": \"ghp_â€¦\",\n        \"GITHUB_ORG\": \"your-org\"\n      }\n    }\n  }\n}"
+                  "body": "{\n  \"mcpServers\": {\n    \"github-workflow\": {\n      \"command\": \"node\",\n      \"args\": [\"/absolute/path/to/dist/server.js\"],\n      \"env\": {\n        \"GITHUB_TOKEN\": \"ghp_…\",\n        \"GITHUB_ORG\": \"your-org\"\n      }\n    }\n  }\n}"
                 }
               ]
             }
@@ -812,7 +812,7 @@
                     { "name": "GITHUB_ORG", "required": true, "default": null, "description": "GitHub organisation slug.", "example": "acme-corp" },
                     { "name": "ALLOWED_REPOS", "required": false, "default": "*", "description": "Comma-separated list of repository names the agent may access. Use * for all repos.", "example": "api,frontend,infra" },
                     { "name": "ALLOW_WRITES", "required": false, "default": "false", "description": "Set to true to enable write tools (create_branch, create_pull_request, request_review, merge_pr, apply_safe_fixes, rerun_failed_jobs).", "example": "true" },
-                    { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used as the server's default linting config. The directory must exist â€” the server exits on startup with an error if it does not. apply_safe_fixes also tries to fetch each target repo's own ESLint config at runtime; LINT_CWD is used as the fallback when the repo has none.", "example": "/home/app/my-project" },
+                    { "name": "LINT_CWD", "required": false, "default": "server cwd", "description": "Absolute path to the project directory whose eslint.config.js and tsconfig.json should be used as the server's default linting config. The directory must exist — the server exits on startup with an error if it does not. apply_safe_fixes also tries to fetch each target repo's own ESLint config at runtime; LINT_CWD is used as the fallback when the repo has none.", "example": "/home/app/my-project" },
                     { "name": "LOG_LEVEL", "required": false, "default": "info", "description": "Logging verbosity.", "example": "debug" },
                     { "name": "PORT", "required": false, "default": null, "description": "Enables the HTTP transport when set. Both stdio and HTTP run simultaneously when PORT is present.", "example": "3000" },
                     { "name": "MCP_SECRET", "required": false, "default": null, "description": "If set, all /mcp requests must include an x-mcp-secret header matching this value.", "example": "a-long-random-secret" },
@@ -846,7 +846,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "The observability middleware monkey-patches McpServer.registerTool at startup, wrapping every handler with latency tracking and structured logging â€” no changes to individual tool handlers are needed."
+                  "body": "The observability middleware monkey-patches McpServer.registerTool at startup, wrapping every handler with latency tracking and structured logging — no changes to individual tool handlers are needed."
                 }
               ]
             },
@@ -860,7 +860,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "When PORT is set, two additional HTTP endpoints are available. GET /health returns { \"status\": \"ok\", \"linters\": [...] } â€” the linters array lists which linting engines were detected at startup (e.g. [\"eslint\", \"typescript\"]). An empty array means no ESLint config was found; a warning is also emitted in the startup log in that case. GET /audit serves the audit log dashboard."
+                  "body": "When PORT is set, two additional HTTP endpoints are available. GET /health returns { \"status\": \"ok\", \"linters\": [...] } — the linters array lists which linting engines were detected at startup (e.g. [\"eslint\", \"typescript\"]). An empty array means no ESLint config was found; a warning is also emitted in the startup log in that case. GET /audit serves the audit log dashboard."
                 }
               ]
             },
@@ -870,11 +870,11 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "The knowledge/ directory contains Markdown files registered as MCP resources at engineering:///<slug>. On startup, the server reads the directory and registers one resource per file â€” no config required to add new files. When DATABASE_URL is set, files are chunked by heading and indexed in Postgres using pg_trgm for full-text search via the search_knowledge tool. Indexing is incremental: each file's SHA-256 hash is stored in a knowledge_files table and compared on every startup; only files whose content has changed since the last run are re-chunked and re-indexed."
+                  "body": "The knowledge/ directory contains Markdown files registered as MCP resources at engineering:///<slug>. On startup, the server reads the directory and registers one resource per file — no config required to add new files. When DATABASE_URL is set, files are chunked by heading and indexed in Postgres using pg_trgm for full-text search via the search_knowledge tool. Indexing is incremental: each file's SHA-256 hash is stored in a knowledge_files table and compared on every startup; only files whose content has changed since the last run are re-chunked and re-indexed."
                 },
                 {
                   "type": "prose",
-                  "body": "All user-controlled text returned by the server passes through a shared sanitizer (src/sanitize.ts) before reaching the agent. This covers knowledge base reads and search excerpts, and GitHub API responses â€” issue bodies, PR bodies, and release notes. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands."
+                  "body": "All user-controlled text returned by the server passes through a shared sanitizer (src/sanitize.ts) before reaching the agent. This covers knowledge base reads and search excerpts, and GitHub API responses — issue bodies, PR bodies, and release notes. Lines matching known prompt-injection signatures are redacted: instruction overrides (\"ignore all previous instructions\"), role delimiter tags (<system>, [INST], <|im_start|>), persona hijacking (\"act as an unrestricted...\"), and explicit override commands."
                 }
               ]
             },
@@ -888,24 +888,24 @@
                 },
                 {
                   "type": "prose",
-                  "body": "Mechanical rules â€” semicolons, naming patterns, import order, type safety â€” belong in eslint.config.js (pointed to by LINT_CWD). These are enforced automatically every time an agent calls lint_code, validate_pr, or apply_safe_fixes. The agent has no choice but to comply."
+                  "body": "Mechanical rules — semicolons, naming patterns, import order, type safety — belong in eslint.config.js (pointed to by LINT_CWD). These are enforced automatically every time an agent calls lint_code, validate_pr, or apply_safe_fixes. The agent has no choice but to comply."
                 },
                 {
                   "type": "prose",
-                  "body": "Judgment-call conventions â€” PR size, commit message format, architecture preferences, on-call runbooks â€” belong in the knowledge/ directory as Markdown files. An agent retrieves these on demand via search_knowledge or by reading a resource URI directly. They are not enforced automatically; the agent must be instructed to consult the knowledge base before starting work."
+                  "body": "Judgment-call conventions — PR size, commit message format, architecture preferences, on-call runbooks — belong in the knowledge/ directory as Markdown files. An agent retrieves these on demand via search_knowledge or by reading a resource URI directly. They are not enforced automatically; the agent must be instructed to consult the knowledge base before starting work."
                 },
                 {
                   "type": "callout",
                   "variant": "info",
-                  "body": "The two layers do not talk to each other. If a convention can be expressed as a lint rule, put it there â€” it will always be checked. If it requires judgment, put it in knowledge/ and add a system-prompt instruction telling the agent to call search_knowledge at the start of any coding task."
+                  "body": "The two layers do not talk to each other. If a convention can be expressed as a lint rule, put it there — it will always be checked. If it requires judgment, put it in knowledge/ and add a system-prompt instruction telling the agent to call search_knowledge at the start of any coding task."
                 },
                 {
                   "type": "prose",
-                  "body": "The knowledge base is language-agnostic. You can document conventions for any language â€” Python, Go, C#, Rust â€” as plain Markdown. An agent reading knowledge/python-conventions.md before touching a .py file works exactly the same as one reading TypeScript guidelines."
+                  "body": "The knowledge base is language-agnostic. You can document conventions for any language — Python, Go, C#, Rust — as plain Markdown. An agent reading knowledge/python-conventions.md before touching a .py file works exactly the same as one reading TypeScript guidelines."
                 },
                 {
                   "type": "prose",
-                  "body": "This enables a more powerful pattern: use the knowledge base as the source of truth and generate lint configs from it. An agent can read a conventions file, translate the rules into an ESLint config, a Ruff config, a Pylint config, or equivalent, and commit it via create_or_update_file. The lint config becomes a generated artifact of the knowledge base rather than a separately maintained file â€” changes to the documented convention can be propagated into enforcement automatically."
+                  "body": "This enables a more powerful pattern: use the knowledge base as the source of truth and generate lint configs from it. An agent can read a conventions file, translate the rules into an ESLint config, a Ruff config, a Pylint config, or equivalent, and commit it via create_or_update_file. The lint config becomes a generated artifact of the knowledge base rather than a separately maintained file — changes to the documented convention can be propagated into enforcement automatically."
                 },
                 {
                   "type": "steps",
@@ -913,7 +913,7 @@
                     "Write your convention in knowledge/conventions.md in plain language",
                     "Ask the agent to read the file and generate the corresponding lint config for your language",
                     "Agent commits the config via create_or_update_file on a new branch",
-                    "Review and merge â€” the convention is now enforced on every future lint call"
+                    "Review and merge — the convention is now enforced on every future lint call"
                   ]
                 }
               ]
@@ -935,7 +935,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "Add a Postgres plugin in the Railway dashboard to enable audit logging and knowledge search. DATABASE_URL is injected automatically. Set GITHUB_TOKEN, GITHUB_ORG, and MCP_SECRET in Settings â†’ Variables."
+                  "body": "Add a Postgres plugin in the Railway dashboard to enable audit logging and knowledge search. DATABASE_URL is injected automatically. Set GITHUB_TOKEN, GITHUB_ORG, and MCP_SECRET in Settings → Variables."
                 }
               ]
             },
@@ -968,7 +968,7 @@
           "pages": [
             {
               "id": "intro",
-              "title": "GitHub Workflow MCP â€” plain English",
+              "title": "GitHub Workflow MCP — plain English",
               "content": [
                 {
                   "type": "prose",
@@ -977,7 +977,7 @@
                 {
                   "type": "callout",
                   "variant": "info",
-                  "body": "Think of it as giving your AI assistant a read-only window into your engineering workflow â€” with the option to let it take actions too, when your team is ready."
+                  "body": "Think of it as giving your AI assistant a read-only window into your engineering workflow — with the option to let it take actions too, when your team is ready."
                 },
                 {
                   "type": "prose",
@@ -1004,7 +1004,7 @@
                   "items": [
                     {
                       "label": "Repositories",
-                      "summary": "See all the code projects your team has on GitHub â€” names, descriptions, and languages used."
+                      "summary": "See all the code projects your team has on GitHub — names, descriptions, and languages used."
                     },
                     {
                       "label": "Files",
@@ -1024,7 +1024,7 @@
                     },
                     {
                       "label": "CI failure diagnostics",
-                      "summary": "Drill into a failed CI run to see which job and step failed, and read the raw log output â€” without opening the browser."
+                      "summary": "Drill into a failed CI run to see which job and step failed, and read the raw log output — without opening the browser."
                     },
                     {
                       "label": "Your in-progress work",
@@ -1123,7 +1123,7 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "When write tools are enabled, an AI assistant can take a GitHub issue, understand the requirement, find relevant code in the repository, generate a fix, lint it, and open a pull request for human review â€” all in one conversation."
+                  "body": "When write tools are enabled, an AI assistant can take a GitHub issue, understand the requirement, find relevant code in the repository, generate a fix, lint it, and open a pull request for human review — all in one conversation."
                 },
                 {
                   "type": "steps",
@@ -1144,7 +1144,7 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "During an incident or before a release, quickly ask the AI assistant: 'What version of the API is currently live?', 'Did the last CI run pass?', or 'What changed since the last release?' â€” without leaving the conversation."
+                  "body": "During an incident or before a release, quickly ask the AI assistant: 'What version of the API is currently live?', 'Did the last CI run pass?', or 'What changed since the last release?' — without leaving the conversation."
                 }
               ]
             }
@@ -1164,12 +1164,12 @@
                 },
                 {
                   "type": "prose",
-                  "body": "Write actions â€” creating branches, opening pull requests, merging â€” are turned off by default. They require an administrator to opt in, and every action taken is recorded in an audit log that shows who triggered it, what was done, and when."
+                  "body": "Write actions — creating branches, opening pull requests, merging — are turned off by default. They require an administrator to opt in, and every action taken is recorded in an audit log that shows who triggered it, what was done, and when."
                 },
                 {
                   "type": "callout",
                   "variant": "success",
-                  "body": "The assistant never has access to your GitHub password or SSH keys â€” it uses a limited-scope access token that can be revoked at any time."
+                  "body": "The assistant never has access to your GitHub password or SSH keys — it uses a limited-scope access token that can be revoked at any time."
                 },
                 {
                   "type": "prose",
@@ -1177,7 +1177,7 @@
                 },
                 {
                   "type": "prose",
-                  "body": "Any text that comes from GitHub â€” issue descriptions, pull request bodies, release notes â€” as well as the knowledge base files, is automatically scanned before it reaches the AI. If those sources contain hidden instructions designed to manipulate the AI's behaviour, those lines are removed before the content is served."
+                  "body": "Any text that comes from GitHub — issue descriptions, pull request bodies, release notes — as well as the knowledge base files, is automatically scanned before it reaches the AI. If those sources contain hidden instructions designed to manipulate the AI's behaviour, those lines are removed before the content is served."
                 }
               ]
             }
