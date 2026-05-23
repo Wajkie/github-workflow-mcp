@@ -870,7 +870,7 @@
               "content": [
                 {
                   "type": "prose",
-                  "body": "The knowledge/ directory contains Markdown files registered as MCP resources at engineering:///<slug>. On startup, the server reads the directory and registers one resource per file — no config required to add new files. When DATABASE_URL is set, files are also chunked by heading and indexed in Postgres using pg_trgm for full-text search via the search_knowledge tool."
+                  "body": "The knowledge/ directory contains Markdown files registered as MCP resources at engineering:///<slug>. On startup, the server reads the directory and registers one resource per file — no config required to add new files. When DATABASE_URL is set, files are chunked by heading and indexed in Postgres using pg_trgm for full-text search via the search_knowledge tool. Indexing is incremental: each file's SHA-256 hash is stored in a knowledge_files table and compared on every startup; only files whose content has changed since the last run are re-chunked and re-indexed."
                 },
                 {
                   "type": "prose",
