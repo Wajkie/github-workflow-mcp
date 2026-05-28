@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Octokit } from "@octokit/rest";
 import { getReleaseStatus, getRecentDeployments } from "../release.js";
+import { wrapUntrustedContent } from "../../sanitize.js";
 
 function mockOctokit(): Octokit {
   return {
@@ -34,7 +35,7 @@ describe("getReleaseStatus", () => {
       published_at: "2026-05-01T12:00:00Z",
       draft: false,
       prerelease: false,
-      body_summary: "Bug fixes and performance improvements.",
+      body_summary: wrapUntrustedContent("Bug fixes and performance improvements."),
       url: "https://github.com/org/repo/releases/tag/v1.2.0",
     });
   });
@@ -55,7 +56,7 @@ describe("getReleaseStatus", () => {
     });
 
     const result = await getReleaseStatus(octokit, "org", "repo");
-    expect(result.body_summary).toHaveLength(500);
+    expect(result.body_summary).toEqual(wrapUntrustedContent("x".repeat(500)));
   });
 
   it("returns null body_summary when body is absent", async () => {

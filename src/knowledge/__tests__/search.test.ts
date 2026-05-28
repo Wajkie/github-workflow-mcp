@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { chunkMarkdown, createKnowledgeSearcher } from "../search.js";
+import { wrapUntrustedContent } from "../../sanitize.js";
 
 const mockQuery = vi.hoisted(() => vi.fn());
 const mockReaddir = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -143,7 +144,7 @@ describe("createKnowledgeSearcher", () => {
       expect(result.results[0]).toEqual({
         file: "conventions",
         section: "Naming",
-        excerpt: "Use camelCase",
+        excerpt: wrapUntrustedContent("Use camelCase"),
         score: 0.85,
       });
     }

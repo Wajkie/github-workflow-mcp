@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Octokit } from "@octokit/rest";
 import { getActiveWork, getIssue, searchIssues } from "../workTracking.js";
+import { wrapUntrustedContent } from "../../sanitize.js";
 
 function makeItem(overrides: Record<string, unknown> = {}) {
   return {
@@ -91,7 +92,7 @@ describe("getIssue", () => {
     expect(result).toEqual({
       number: 42,
       title: "Bug report",
-      body: "Something broke",
+      body: wrapUntrustedContent("Something broke"),
       state: "open",
       labels: ["bug", "priority"],
       assignees: ["alice"],

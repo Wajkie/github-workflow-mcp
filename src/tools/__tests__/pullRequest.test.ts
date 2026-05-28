@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Octokit } from "@octokit/rest";
 import { getChangedFiles, getPr } from "../pullRequest.js";
+import { wrapUntrustedContent } from "../../sanitize.js";
 
 function makePrData(overrides: Record<string, unknown> = {}) {
   return {
@@ -45,7 +46,7 @@ describe("getPr", () => {
     expect(result).toEqual({
       number: 1,
       title: "Add feature",
-      body: "Description",
+      body: wrapUntrustedContent("Description"),
       state: "open",
       draft: false,
       head: "feature-branch",
